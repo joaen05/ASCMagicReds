@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Beheren Aways{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Awaylijst</h2>
+        <input type="text" id="searchInput" class="form-control form-control-sm mb-3"
+               placeholder="🔍 Zoek op awaynaam..." onkeyup="filterAways()" style="max-width: 300px;">
+        <a href="{{ url_for('add_away') }}" class="btn btn-primary btn-sm">Away toevoegen</a>
+    </div>
+
+    <!-- Voeg een div toe om de tabel in te wikkelen en de hoogte te beperken -->
+    <div style="max-height: calc(100vh - 200px); overflow-y: auto;">
+        <table class="table table-striped">
+            <thead class="sticky-header">
+                <tr>
+                    <th>Awaynaam</th>
+                    <th>Acties</th>
+                </tr>
+            </thead>
+            <tbody id="awayTable">
+                {% for away in aways %}
+                <tr>
+                    <td class="awaynaam">{{ away.naam }}</td>
+                    <td>
+                        <!-- Bewerkknop -->
+                        <a href="{{ url_for('edit_away', id=away.id) }}" class="btn btn-sm btn-warning">
+                            <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 20px; height: 20px;">
+                        </a>
+                        <!-- Verwijderknop met formulier en bevestiging -->
+                        <form action="{{ url_for('delete_away', id=away.id) }}" method="POST" style="display:inline;" id="delete-form-{{ away.id }}">
+                            <button type="button" class="btn btn-sm btn-danger action-button" onclick="confirmDelete({{ away.id }})">
+                                <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 20px; height: 20px;">
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function confirmDelete(awayId) {
+        var confirmation = confirm("Weet je zeker dat je deze away wilt verwijderen?");
+        if (confirmation) {
+            document.getElementById('delete-form-' + awayId).submit();
+        }
+    }
+
+    function filterAways() {
+        var input, filter, table, tr, td, i, txtValue;
+        input = document.getElementById("searchInput");
+        filter = input.value.toLowerCase();
+        table = document.getElementById("awayTable");
+        tr = table.getElementsByTagName("tr");
+
+        for (i = 0; i < tr.length; i++) {
+            td = tr[i].getElementsByClassName("awaynaam")[0];
+            if (td) {
+                txtValue = td.textContent || td.innerText;
+                if (txtValue.toLowerCase().includes(filter)) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+</script>
+
+<!-- Voeg deze CSS toe om te voorkomen dat de hele pagina scrollt -->
+<style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden; /* Voorkomt scrollen op de hele pagina */
+    }
+    .container {
+        height: calc(100vh - 56px); /* Pas de hoogte aan op basis van de hoogte van de navbar */
+        display: flex;
+        flex-direction: column;
+    }
+    .table-container {
+        flex: 1;
+        overflow-y: auto; /* Scrollbar alleen voor de tabel */
+    }
+    .sticky-header {
+        position: sticky;
+        top: 0;
+        background-color: white; /* Zorg ervoor dat de achtergrondkleur overeenkomt met de tabel */
+        z-index: 1; /* Zorg ervoor dat de koprij boven de andere rijen blijft */
+    }
+</style>
+{% endblock %}

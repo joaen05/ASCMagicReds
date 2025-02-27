@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toegang Geweigerd</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            color: #dc3545;
+        }
+        p {
+            font-size: 1.2rem;
+        }
+        a {
+            text-decoration: none;
+            color: white;
+            background-color: #007bff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        a:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Toegang Geweigerd</h1>
+    <p>Je bent geen lid van ACS Magic Reds.</p>
+    <p>Indien je lid wil worden, stuur een mail naar <b>voorzitter@gmail.com</b>.</p>
+    <br>
+    <a href="{{ url_for('logout') }}">Uitloggen</a>
+</body>
+</html>

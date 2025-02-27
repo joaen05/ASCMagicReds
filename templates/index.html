@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth0 Login Example</title>
+    <script type="text/javascript">
+        window.onload = function() {
+            {% if session.get("user") %}
+                window.location.href = "{{ url_for('dashboard') }}";  // Als ingelogd, naar dashboard
+            {% else %}
+                window.location.href = "{{ url_for('logout') }}";  // Als niet ingelogd, naar logout
+            {% endif %}
+        }
+    </script>
+</head>
+<body>
+    <!-- De pagina wordt automatisch doorgestuurd, dus er hoeft verder niets te worden weergegeven -->
+</body>
+</html>

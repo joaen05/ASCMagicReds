@@ -1,0 +1,173 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+/* Container for main content */
+.container {
+    width: 80%;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+h1 {
+    color: #333;
+}
+
+/* Button styles */
+button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Input fields */
+input[type="text"], input[type="password"], input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+/* Links */
+a {
+    text-decoration: none;
+}
+
+/* Alert box styles */
+.alert {
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+}
+
+.success {
+    background-color: #28a745;
+    color: white;
+}
+
+.danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.warning {
+    background-color: #ffc107;
+    color: white;
+}
+
+/* Profile and dropdown styles */
+.profile-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 10px;
+    background-color: #fff;
+    border-bottom: 1px solid #ddd;
+    position: relative;
+    z-index: 2;
+}
+
+.profile-container .profile-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #ccc; /* Placeholder color */
+    margin-right: 10px;
+}
+
+.profile-container .profile-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-container .dropdown-button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.profile-container .dropdown-button:hover {
+    background-color: #f1f1f1;
+}
+
+.profile-container .dropdown-button .profile-name {
+    margin-left: 8px;
+    font-size: 16px;
+    color: #333;
+}
+
+/* Dropdown menu */
+.profile-dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background-color: #fff;
+    min-width: 180px;
+    max-width: 220px; /* Verhoogd de maximale breedte van de dropdown */
+    box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+    border: 1px solid #ddd;
+    padding: 10px 0; /* Padding for the dropdown */
+    box-sizing: border-box;
+    margin-top: 5px; /* Space between button and dropdown */
+    right: 0; /* Align dropdown to the right */
+    width: auto; /* Ensures it doesn't go off-screen */
+    max-width: 100%; /* Ensures it doesn’t overflow */
+}
+
+/* Adjust the padding and appearance of dropdown items */
+.profile-dropdown-content a {
+    color: black;
+    padding: 12px 20px; /* Extra padding to move items away from the edge */
+    text-decoration: none;
+    display: block;
+    border-radius: 5px; /* Rounded corners for items */
+}
+
+/* Change background color on hover */
+.profile-dropdown-content a:hover {
+    background-color: #ddd;
+}
+
+/* Show the dropdown menu when the button is clicked */
+.profile-dropdown:hover .profile-dropdown-content {
+    display: block;
+}
+
+/* Prevent the page from overflowing horizontally */
+html, body {
+    overflow-x: hidden;
+}
+
+/* Make sure the navbar and dropdown is well-aligned */
+.profile-container .dropdown-button {
+    margin-right: 30px; /* Padding from right edge */
+}
+.action-button {
+    margin-left: 20px; /* Geeft ruimte tussen de knoppen */
+}
+
+
