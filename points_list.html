@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Puntenlijst{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Puntenoverzicht</h2>
+    </div>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th> <!-- Kolom voor plaatsnummer -->
+                <th>Voornaam</th>
+                <th>Achternaam</th>
+                <th>Puntenaantal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lid in leden %}
+            <tr {% if lid.is_logged_in %}class="table-primary"{% endif %}> <!-- Fluoriseer de ingelogde gebruiker -->
+                <td>{{ loop.index }}</td> <!-- Index voor plaatsnummer -->
+                <td>{{ lid.voornaam }}</td>
+                <td>{{ lid.naam }}</td>
+                <td>{{ lid.puntenaantal }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

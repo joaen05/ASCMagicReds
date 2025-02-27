@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}Inschrijven{% endblock %}
+
+{% block content %}
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inschrijven voor Away</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .card {
+            margin-bottom: 20px;
+            height: 300px; /* Vaste hoogte voor de card */
+            display: flex;
+            flex-direction: column;
+        }
+        .card-header {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .card-body {
+            padding: 20px;
+            overflow-y: auto; /* Scrollbar voor de beschrijving */
+            flex: 1; /* Zorgt ervoor dat de body de resterende ruimte inneemt */
+        }
+        .pagination {
+            justify-content: center;
+        }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-inline {
+            display: flex;
+            align-items: center;
+        }
+        .form-inline select,
+        .form-inline button {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-container">
+            <h2>Inschrijven voor Away</h2>
+            {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
+            <a href="{{ url_for('aanmaken_inschrijving_away') }}" class="btn btn-primary">Nieuwe Inschrijving voor Away</a>
+            {% endif %}
+        </div>
+
+        {% if available_aways %}
+            {% for away in available_aways %}
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between">
+                            <span>{{ away[1] }}</span>
+                            <span>{{ away[4] }}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <p><strong>Beschrijving:</strong> {{ away[3] }}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <form method="POST">
+                                    <div class="form-group">
+                                        <strong>Beschikbare inschrijvingstijd:</strong>
+                                        <span id="countdown_{{ away[0] }}">{{ away[5] }}</span>
+                                    </div>
+                                    <div class="form-inline">
+                                        <label for="inschrijven_{{ away[0] }}">Inschrijven:</label>
+                                        <select class="form-control" id="inschrijven_{{ away[0] }}" name="inschrijven_{{ away[0] }}">
+                                            <option value="nee" selected>Nee</option>
+                                            <option value="ja">Ja</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary" id="submit_{{ away[0] }}" {% if away[5] < current_time %} disabled {% endif %}>Opslaan</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+
+            {% if total_pages > 1 %}
+                <div class="pagination">
+                    {% if current_page > 1 %}
+                        <a href="{{ url_for('inschrijven_away', page=current_page - 1) }}"><b> < </b></a>
+                    {% endif %}
+                    <span>Away {{ current_page }} van {{ total_pages }}</span>
+                    {% if current_page < total_pages %}
+                        <a href="{{ url_for('inschrijven_away', page=current_page + 1) }}"><b> > </b></a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                Momenteel geen aways beschikbaar.
+            </div>
+        {% endif %}
+    </div>
+
+<script>
+    // Automatische refresh bij openen van de pagina
+    window.onload = function() {
+        if (!sessionStorage.getItem("reloaded")) {
+            sessionStorage.setItem("reloaded", "true");
+            location.reload();
+        } else {
+            sessionStorage.removeItem("reloaded");
+        }
+    };
+
+    function updateCountdown(endTime, elementId, buttonId) {
+        const countdownElement = document.getElementById(elementId);
+        const buttonElement = document.getElementById(buttonId);
+        const endDate = new Date(endTime).getTime();
+
+        function update() {
+            const now = new Date().getTime();
+            const timeLeft = endDate - now;
+
+            if (timeLeft > 0) {
+                const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+                countdownElement.innerHTML = `${days}d ${hours}u ${minutes}m ${seconds}s`;
+                buttonElement.disabled = false;
+            } else {
+                countdownElement.innerHTML = "Inschrijving gesloten";
+                buttonElement.disabled = true;
+                clearInterval(interval);
+            }
+        }
+
+        update();
+        const interval = setInterval(update, 1000);
+    }
+
+    {% for away in available_aways %}
+        updateCountdown("{{ away[5] }}", "countdown_{{ away[0] }}", "submit_{{ away[0] }}");
+    {% endfor %}
+</script>
+
+</body>
+</html>
+
+{% endblock %}
