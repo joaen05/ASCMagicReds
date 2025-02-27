@@ -472,5 +472,5 @@ def aanmaken_inschrijving_away():
 
     # Render de template en geef de beschikbare 'aways' door
     return render_template('aanmaken_inschrijving_away.html', available_aways=available_aways)
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=10000)

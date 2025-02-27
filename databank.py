@@ -1,42 +1,48 @@
-import sqlite3
+import psycopg2
 
-# Verbind met de database (maakt het bestand aan als het niet bestaat)
-conn = sqlite3.connect('users.db')
+# Verbind met de PostgreSQL-database
+conn = psycopg2.connect(
+    host="dpg-cv06lnvnoe9s73d0fbgg-a",  # Hostnaam van je Render database
+    port="5432",                       # Standaard poort voor PostgreSQL
+    dbname="ascmagicreds",              # Naam van je database
+    user="ascmagicreds_user",           # Gebruikersnaam
+    password="cuR0KIuofAMAQoPFSsbXDQ6NrZyviMim"   # Wachtwoord van je database
+)
+
 cursor = conn.cursor()
 
-# Maak de tabel 'users' als deze nog niet bestaat
-cursor.execute('''
+# Maak de tabellen aan (gebruik dezelfde SQL-queries als je voor SQLite hebt)
+
+cursor.execute(''' 
 CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,  -- Gebruik SERIAL voor auto-increment in PostgreSQL
     voornaam TEXT NOT NULL,
     naam TEXT NOT NULL,
     email TEXT NOT NULL,
-    one_account_id INTEGER NOT NULL,  -- Toevoegen van one_account_id
-    adres_straat TEXT NOT NULL,  -- Adres straat
-    adres_nr TEXT NOT NULL,  -- Adres nummer
-    adres_postcode INTEGER NOT NULL,  -- Adres postcode
-    adres_gemeente TEXT NOT NULL,  -- Adres gemeente
-    rijksregisternummer TEXT NOT NULL,  -- Rijksregisternummer
-    abo_ja_nee TEXT CHECK(abo_ja_nee IN ('ja', 'nee')) NOT NULL,  -- Abonnement ja/nee
-    telefoonnummer TEXT NOT NULL,  -- Telefoonnummer
-    puntenaantal INTEGER DEFAULT 0  -- Puntenaantal
+    one_account_id INTEGER NOT NULL,
+    adres_straat TEXT NOT NULL,
+    adres_nr TEXT NOT NULL,
+    adres_postcode INTEGER NOT NULL,
+    adres_gemeente TEXT NOT NULL,
+    rijksregisternummer TEXT NOT NULL,
+    abo_ja_nee TEXT CHECK(abo_ja_nee IN ('ja', 'nee')) NOT NULL,
+    telefoonnummer TEXT NOT NULL,
+    puntenaantal INTEGER DEFAULT 0
 )
 ''')
 
-# Maak de tabel 'aways' als deze nog niet bestaat
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS aways (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    naam TEXT NOT NULL  -- Naam van de activiteit
+    id SERIAL PRIMARY KEY,
+    naam TEXT NOT NULL
 )
 ''')
 
-# Maak de linktabel 'user_aways' voor de veel-op-veel relatie
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS user_aways (
     user_id INTEGER,
     away_id INTEGER,
-    inschrijvingsdatum DATE NOT NULL,  -- Datum van inschrijving
+    inschrijvingsdatum DATE NOT NULL,
     PRIMARY KEY (user_id, away_id),
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     FOREIGN KEY (away_id) REFERENCES aways (id) ON DELETE CASCADE
@@ -45,19 +51,19 @@ CREATE TABLE IF NOT EXISTS user_aways (
 
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS away_details (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     away_id INTEGER,
-    beschrijving TEXT,  -- Beschrijving van de activiteit
-    aantal_kaarten INTEGER,  -- Aantal beschikbare kaarten
-    away_datum DATETIME,  -- Datum van de activiteit
-    inschrijving_einde DATETIME,  -- Datum tot wanneer mensen zich kunnen inschrijven
-    is_closed BOOLEAN DEFAULT 0,
+    beschrijving TEXT,
+    aantal_kaarten INTEGER,
+    away_datum TIMESTAMP,  -- Gebruik TIMESTAMP voor datum en tijd in PostgreSQL
+    inschrijving_einde TIMESTAMP,
+    is_closed BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (away_id) REFERENCES aways (id) ON DELETE CASCADE
 )
 ''')
 
-
 print("Database en tabellen succesvol aangemaakt en bijgewerkt!")
 
 # Sluit de verbinding
+conn.commit()
 conn.close()
