@@ -1,9 +1,10 @@
 from flask import Flask, redirect, session, url_for, render_template, request
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-import sqlite3
+import psycopg2
 import os
 from functools import wraps
+from datetime import datetime
 
 # Laad omgevingsvariabelen uit .env-bestand
 load_dotenv()
@@ -23,23 +24,33 @@ auth0 = oauth.register(
     },
 )
 
+# Functie om verbinding te maken met de PostgreSQL-database
+def get_db_connection():
+    conn = psycopg2.connect(
+        host="db.wnbuhmfqnfbyhpelbygq.supabase.co",
+        port=5432,
+        dbname="postgres",
+        user="postgres",
+        password="a!G3N9a$bEJ_4Xk"
+    )
+    return conn
+
 # Hulpfunctie om toegang te controleren
 def is_email_in_database(email):
     try:
-        conn = sqlite3.connect('users.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM users WHERE email = ?", (email,))
+        cursor.execute("SELECT COUNT(*) FROM users WHERE email = %s", (email,))
         result = cursor.fetchone()
         conn.close()
         return result[0] > 0
-    except sqlite3.Error:
+    except psycopg2.Error:
         return False
 
-
 def is_naam_in_database(naam):
-    conn = sqlite3.connect('users.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT 1 FROM aways WHERE naam = ?", (naam,))
+    cursor.execute("SELECT 1 FROM aways WHERE naam = %s", (naam,))
     result = cursor.fetchone()
     conn.close()
     return result is not None
@@ -128,7 +139,7 @@ def points_list():
         return redirect(url_for("no_access"))
     logged_in_email = session.get('user', {}).get('userinfo', {}).get('email')
     try:
-        conn = sqlite3.connect('users.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT voornaam, naam, email, puntenaantal FROM users ORDER BY puntenaantal DESC")
         leden = cursor.fetchall()
@@ -144,7 +155,7 @@ def points_list():
             for lid in leden
         ]
         return render_template('points_list.html', leden=leden_dict)
-    except sqlite3.Error:
+    except psycopg2.Error:
         return redirect(url_for("dashboard"))
 
 @app.route('/beheer_leden')
@@ -152,16 +163,15 @@ def points_list():
 @admin_required
 def beheer_leden():
     try:
-        conn = sqlite3.connect('users.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id, voornaam, naam FROM users ORDER BY naam, voornaam")
         leden = cursor.fetchall()
         conn.close()
         leden_dict = [{'id': lid[0], 'voornaam': lid[1], 'naam': lid[2]} for lid in leden]
         return render_template('beheer_leden.html', leden=leden_dict)
-    except sqlite3.Error:
+    except psycopg2.Error:
         return redirect(url_for("dashboard"))
-
 
 @app.route('/add_user', methods=['GET', 'POST'])
 @login_required
@@ -185,15 +195,15 @@ def add_user():
         if is_email_in_database(data['email']):
             return render_template('add_user.html', error="E-mailadres bestaat al!", **data)
         try:
-            conn = sqlite3.connect('users.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute('''INSERT INTO users (voornaam, naam, email, one_account_id, adres_straat, adres_nr, adres_postcode, adres_gemeente, rijksregisternummer, abo_ja_nee, telefoonnummer, puntenaantal)
-                              VALUES (:voornaam, :naam, :email, :one_account_id, :adres_straat, :adres_nr, :adres_postcode, :adres_gemeente, :rijksregisternummer, :abo_ja_nee, :telefoonnummer, :puntenaantal)''',
-                           data)
+                              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                           (data['voornaam'], data['naam'], data['email'], data['one_account_id'], data['adres_straat'], data['adres_nr'], data['adres_postcode'], data['adres_gemeente'], data['rijksregisternummer'], data['abo_ja_nee'], data['telefoonnummer'], data['puntenaantal']))
             conn.commit()
             conn.close()
             return redirect(url_for('beheer_leden'))
-        except sqlite3.Error:
+        except psycopg2.Error:
             return render_template('add_user.html', error="Fout bij het toevoegen van de gebruiker.")
 
     # Geef lege waarden door voor de eerste keer als de gebruiker de pagina bezoekt
@@ -213,13 +223,12 @@ def add_user():
     }
     return render_template('add_user.html', **empty_data)
 
-
 @app.route('/edit_member/<int:id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_member(id):
     try:
-        conn = sqlite3.connect('users.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
 
         if request.method == 'POST':
@@ -238,16 +247,16 @@ def edit_member(id):
             puntenaantal = int(request.form['puntenaantal'])
 
             cursor.execute('''UPDATE users SET 
-                              voornaam = ?, naam = ?, email = ?, one_account_id = ?, adres_straat = ?, 
-                              adres_nr = ?, adres_postcode = ?, adres_gemeente = ?, rijksregisternummer = ?, 
-                              abo_ja_nee = ?, telefoonnummer = ?, puntenaantal = ? WHERE id = ?''',
+                              voornaam = %s, naam = %s, email = %s, one_account_id = %s, adres_straat = %s, 
+                              adres_nr = %s, adres_postcode = %s, adres_gemeente = %s, rijksregisternummer = %s, 
+                              abo_ja_nee = %s, telefoonnummer = %s, puntenaantal = %s WHERE id = %s''',
                            (voornaam, naam, email, one_account_id, adres_straat, adres_nr, adres_postcode,
                             adres_gemeente, rijksregisternummer, abo_ja_nee, telefoonnummer, puntenaantal, id))
             conn.commit()
             conn.close()
             return redirect(url_for('beheer_leden'))
         else:
-            cursor.execute("SELECT * FROM users WHERE id = ?", (id,))
+            cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
             member = cursor.fetchone()
             conn.close()
 
@@ -262,22 +271,21 @@ def edit_member(id):
 
             # Stuur de gegevens naar de template
             return render_template('edit_member.html', member=member_dict)
-    except sqlite3.Error:
+    except psycopg2.Error:
         return redirect(url_for("dashboard"))
-
 
 @app.route('/delete_member/<int:id>', methods=['POST'])
 @login_required
 @admin_required
 def delete_member(id):
     try:
-        conn = sqlite3.connect('users.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM users WHERE id = ?", (id,))
+        cursor.execute("DELETE FROM users WHERE id = %s", (id,))
         conn.commit()
         conn.close()
         return redirect(url_for('beheer_leden'))
-    except sqlite3.Error:
+    except psycopg2.Error:
         return redirect(url_for("dashboard"))
 
 @app.route('/inschrijven_away', methods=['GET', 'POST'])
@@ -287,7 +295,7 @@ def inschrijven_away():
     page = request.args.get('page', 1, type=int)
 
     # Ophalen van alle available 'aways' met details zoals datum en inschrijvingen
-    conn = sqlite3.connect('users.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
 
     # Haal alle away details op
@@ -295,8 +303,8 @@ def inschrijven_away():
         SELECT ad.id, a.naam, ad.aantal_kaarten, ad.beschrijving, ad.away_datum, ad.inschrijving_einde, ad.is_closed
         FROM away_details ad
         JOIN aways a ON ad.away_id = a.id
-        WHERE ad.is_closed = 0
-        ORDER BY ad.inschrijving_einde   ASC
+        WHERE ad.is_closed = FALSE  -- Gebruik FALSE in plaats van 0
+        ORDER BY ad.inschrijving_einde ASC
     ''')
     available_aways = cursor.fetchall()
 
@@ -310,11 +318,11 @@ def inschrijven_away():
         now = datetime.now()
 
         if datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M:%S') < now:
-            # Als de inschrijvingstijd is verstreken, update de 'is_closed' status naar -1
+            # Als de inschrijvingstijd is verstreken, update de 'is_closed' status naar TRUE
             cursor.execute('''
                 UPDATE away_details
-                SET is_closed = -1
-                WHERE id = ?
+                SET is_closed = TRUE
+                WHERE id = %s
             ''', (away_id,))
             conn.commit()
 
@@ -352,16 +360,15 @@ def inschrijven_away():
 @admin_required
 def beheren_away():
     try:
-        conn = sqlite3.connect('users.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id, naam FROM aways ORDER BY naam")
         aways = cursor.fetchall()
         conn.close()
         aways_dict = [{'id': away[0], 'naam': away[1]} for away in aways]
         return render_template('beheren_away.html', aways=aways_dict)
-    except sqlite3.Error:
+    except psycopg2.Error:
         return redirect(url_for("dashboard"))
-
 
 @app.route('/add_away', methods=['GET', 'POST'])
 @login_required
@@ -377,13 +384,13 @@ def add_away():
             return render_template('add_away.html', error="Deze away bestaat al!", naam=naam)
 
         try:
-            conn = sqlite3.connect('users.db')
+            conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO aways (naam) VALUES (?)", (naam,))
+            cursor.execute("INSERT INTO aways (naam) VALUES (%s)", (naam,))
             conn.commit()
             conn.close()
             return redirect(url_for('beheren_away'))  # Redirect bij succes
-        except sqlite3.Error as e:
+        except psycopg2.Error as e:
             return render_template('add_away.html', error=f"Fout bij het toevoegen: {e}", naam=naam)
 
     return render_template('add_away.html', naam="")
@@ -393,51 +400,48 @@ def add_away():
 @admin_required
 def edit_away(id):
     try:
-        with sqlite3.connect('users.db') as conn:
-            cursor = conn.cursor()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-            if request.method == 'POST':
-                naam = request.form['naam'].title()
-                cursor.execute("UPDATE aways SET naam = ? WHERE id = ?", (naam, id))
-                conn.commit()
-                return redirect(url_for('beheren_away'))
-
-            # Haal de bestaande gegevens op
-            cursor.execute("SELECT id, naam FROM aways WHERE id = ?", (id,))
+        if request.method == 'POST':
+            naam = request.form['naam'].title()
+            cursor.execute("UPDATE aways SET naam = %s WHERE id = %s", (naam, id))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('beheren_away'))
+        else:
+            cursor.execute("SELECT id, naam FROM aways WHERE id = %s", (id,))
             away = cursor.fetchone()
+            conn.close()
 
             if not away:
-                return "Away niet gevonden", 404  # Voorkomt Jinja2-fout
+                return "Away niet gevonden", 404
 
-            away_dict = {'id': away[0], 'naam': away[1]}  # Voeg ID toe
-
-        return render_template('edit_away.html', away=away_dict)
-
-    except sqlite3.Error as e:
-        return f"Databasefout: {e}", 500  # Geeft een nuttigere foutmelding terug
+            away_dict = {'id': away[0], 'naam': away[1]}
+            return render_template('edit_away.html', away=away_dict)
+    except psycopg2.Error as e:
+        return f"Databasefout: {e}", 500
 
 @app.route('/delete_away/<int:id>', methods=['POST'])
 @login_required
 @admin_required
 def delete_away(id):
     try:
-        conn = sqlite3.connect('users.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM aways WHERE id = ?", (id,))
+        cursor.execute("DELETE FROM aways WHERE id = %s", (id,))
         conn.commit()
         conn.close()
         return redirect(url_for('beheren_away'))
-    except sqlite3.Error:
+    except psycopg2.Error:
         return redirect(url_for("dashboard"))
-
-from datetime import datetime
 
 @app.route('/aanmaken_inschrijving_away', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def aanmaken_inschrijving_away():
     # Ophalen van alle available "aways"
-    conn = sqlite3.connect('users.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, naam FROM aways")  # Haal de id en naam op van alle 'aways'
     available_aways = cursor.fetchall()
@@ -460,10 +464,10 @@ def aanmaken_inschrijving_away():
         formatted_inschrijving_einde = inschrijving_einde.strftime('%Y-%m-%dT%H:%M:%S')
 
         # Voeg de inschrijving toe aan de database
-        conn = sqlite3.connect('users.db')
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''INSERT INTO away_details (away_id, aantal_kaarten, beschrijving, away_datum, inschrijving_einde) 
-                          VALUES (?, ?, ?, ?, ?)''',
+                          VALUES (%s, %s, %s, %s, %s)''',
                        (away_id, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde))
         conn.commit()
         conn.close()
@@ -472,5 +476,6 @@ def aanmaken_inschrijving_away():
 
     # Render de template en geef de beschikbare 'aways' door
     return render_template('aanmaken_inschrijving_away.html', available_aways=available_aways)
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)

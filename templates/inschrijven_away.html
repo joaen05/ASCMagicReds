@@ -11,9 +11,14 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <style>
+        html, body {
+            overflow: hidden;
+            height: 100%;
+            margin: 0;
+}
         .card {
             margin-bottom: 20px;
-            height: 300px; /* Vaste hoogte voor de card */
+            height: 270px; /* Vaste hoogte voor de card */
             display: flex;
             flex-direction: column;
         }
@@ -22,10 +27,23 @@
             font-weight: bold;
         }
         .card-body {
-            padding: 20px;
-            overflow-y: auto; /* Scrollbar voor de beschrijving */
-            flex: 1; /* Zorgt ervoor dat de body de resterende ruimte inneemt */
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow: hidden; /* Voeg dit toe om ervoor te zorgen dat de inhoud niet buiten de card valt */
         }
+        .scrollbar{
+            flex-grow: 1; /* Neemt alle beschikbare ruimte in */
+            max-height: 180px;
+            overflow-y: auto; /* Scrollbar voor de beschrijving */
+            white-space: pre-wrap; /* Behoudt newlines en spaties */
+            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+
+        }
+
         .pagination {
             justify-content: center;
         }
@@ -42,6 +60,7 @@
         .form-inline button {
             margin-left: 10px;
         }
+
     </style>
 </head>
 <body>
@@ -65,7 +84,9 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-8">
-                                <p><strong>Beschrijving:</strong> {{ away[3] }}</p>
+                                <div class = "scrollbar">
+                                    <p><strong>Beschrijving:</strong> {{ away[3] }}</p>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <form method="POST">
