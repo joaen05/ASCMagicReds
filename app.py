@@ -2,12 +2,14 @@ from flask import Flask, redirect, session, url_for, render_template, request
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 import psycopg2
+from urllib.parse import urlparse
 import os
 from functools import wraps
 from datetime import datetime
 
 # Laad omgevingsvariabelen uit .env-bestand
 load_dotenv()
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET_KEY')  # Gebruik APP_SECRET_KEY uit .env
@@ -26,14 +28,16 @@ auth0 = oauth.register(
 
 # Functie om verbinding te maken met de PostgreSQL-database
 def get_db_connection():
+    result = urlparse(DATABASE_URL)
     conn = psycopg2.connect(
-        host="db.wnbuhmfqnfbyhpelbygq.supabase.co",
-        port=5432,
-        dbname="postgres",
-        user="postgres",
-        password="a!G3N9a$bEJ_4Xk"
+        host=result.hostname,
+        port=result.port,
+        database=result.path[1:],  # Verwijder de eerste '/'
+        user=result.username,
+        password=result.password
     )
     return conn
+
 
 # Hulpfunctie om toegang te controleren
 def is_email_in_database(email):
