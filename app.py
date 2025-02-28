@@ -11,7 +11,13 @@ from datetime import datetime
 load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-print("DATABASE_URL:", os.getenv("DATABASE_URL"))
+
+try:
+    # Probeer verbinding te maken met de database
+    conn = psycopg2.connect(DATABASE_URL)
+    print("Database connected successfully")
+except Exception as e:
+    print(f"Database connection error: {e}")
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET_KEY')  # Gebruik APP_SECRET_KEY uit .env
 
@@ -38,6 +44,8 @@ def get_db_connection():
         password=result.password
     )
     return conn
+
+
 
 
 # Hulpfunctie om toegang te controleren
