@@ -11,6 +11,7 @@ from datetime import datetime
 load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL')
 
+print("DATABASE_URL:", os.getenv("DATABASE_URL"))
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET_KEY')  # Gebruik APP_SECRET_KEY uit .env
 
