@@ -1,3 +1,5 @@
+import locale
+
 from flask import Flask, redirect, session, url_for, render_template, request
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
@@ -20,6 +22,8 @@ except Exception as e:
     print(f"Database connection error: {e}")
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET_KEY')  # Gebruik APP_SECRET_KEY uit .env
+
+locale.setlocale(locale.LC_TIME, 'nld_NLD')
 
 # Auth0 configuratie
 oauth = OAuth(app)
@@ -483,7 +487,7 @@ def aanmaken_inschrijving_away():
         inschrijving_einde = datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M')  # De ontvangen inschrijving eind datum
 
         # Zet om naar ISO 8601 formaat
-        formatted_away_datum = away_datum.strftime('%d/%m/%Y %H:%M')
+        formatted_away_datum = away_datum.strftime('%Y-%m-%dT%H:%M:%S')
         formatted_inschrijving_einde = inschrijving_einde.strftime('%Y-%m-%dT%H:%M:%S')
 
         # Voeg de inschrijving toe aan de database
