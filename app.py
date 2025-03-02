@@ -1,3 +1,4 @@
+import certifi
 from flask import Flask, redirect, session, url_for, render_template, request
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
@@ -11,7 +12,7 @@ load_dotenv()
 
 # MongoDB configuratie
 MONGODB_URI = os.getenv('MONGODB_URI')
-client = MongoClient(MONGODB_URI)
+client = MongoClient(MONGODB_URI, tlsCAFile=certifi.where())
 db = client['ASCMagicReds']  # Vervang 'ASCMagicReds' door de naam van je database
 
 app = Flask(__name__)
