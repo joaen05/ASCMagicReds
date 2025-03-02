@@ -23,7 +23,7 @@ except Exception as e:
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET_KEY')  # Gebruik APP_SECRET_KEY uit .env
 
-locale.setlocale(locale.LC_TIME, 'nld_NLD')
+locale.setlocale(locale.LC_TIME, 'nl_NL.UTF-8')
 
 # Auth0 configuratie
 oauth = OAuth(app)
