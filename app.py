@@ -301,6 +301,8 @@ def delete_member(id):
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
 
+from datetime import datetime
+
 @app.route('/inschrijven_away', methods=['GET', 'POST'])
 @login_required
 def inschrijven_away():
@@ -322,7 +324,15 @@ def inschrijven_away():
     available_aways = cursor.fetchall()
 
     # Verkrijg de huidige tijd voor de server-side logica
-    current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    current_time = datetime.now()
+
+    # Converteer de 'away_datum' naar een datetime object
+    for i in range(len(available_aways)):
+        away = available_aways[i]
+        away_date_str = away[4]  # 'away_datum' is op index 4
+        if isinstance(away_date_str, str):  # Controleer of het een string is
+            away_date = datetime.strptime(away_date_str, '%Y-%m-%d %H:%M:%S')  # Pas dit formaat aan als het anders is
+            available_aways[i] = away[:4] + (away_date,) + away[5:]  # Vervang de oude string door een datetime object
 
     # Controleer of de inschrijving is verlopen en zet is_closed op -1
     for away in available_aways:
@@ -330,9 +340,9 @@ def inschrijven_away():
         inschrijving_einde = away[5]  # inschrijving einde tijd uit de database
         now = datetime.now()
 
-        if datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M:%S') < now:
+        if inschrijving_einde < now:
             # Als de inschrijvingstijd is verstreken, update de 'is_closed' status naar TRUE
-            cursor.execute('''
+            cursor.execute(''' 
                 UPDATE away_details
                 SET is_closed = TRUE
                 WHERE id = %s
