@@ -1,23 +1,19 @@
 from flask import Flask, redirect, session, url_for, render_template, request
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
-import psycopg2
-from urllib.parse import urlparse
+from pymongo import MongoClient
 import os
 from functools import wraps
 from datetime import datetime
 
 # Laad omgevingsvariabelen uit .env-bestand
 load_dotenv()
-DATABASE_URL = os.getenv('DATABASE_URL')
 
+# MongoDB configuratie
+MONGODB_URI = os.getenv('MONGODB_URI')
+client = MongoClient(MONGODB_URI)
+db = client['ASCMagicReds']  # Vervang 'ASCMagicReds' door de naam van je database
 
-try:
-    # Probeer verbinding te maken met de database
-    conn = psycopg2.connect(DATABASE_URL)
-    print("Database connected successfully")
-except Exception as e:
-    print(f"Database connection error: {e}")
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET_KEY')  # Gebruik APP_SECRET_KEY uit .env
 
@@ -33,40 +29,14 @@ auth0 = oauth.register(
     },
 )
 
-# Functie om verbinding te maken met de PostgreSQL-database
-def get_db_connection():
-    result = urlparse(DATABASE_URL)
-    conn = psycopg2.connect(
-        host=result.hostname,
-        port=result.port,
-        database=result.path[1:],  # Verwijder de eerste '/'
-        user=result.username,
-        password=result.password
-    )
-    return conn
-
-
-
-
-# Hulpfunctie om toegang te controleren
+# Functie om toegang te controleren
 def is_email_in_database(email):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM users WHERE email = %s", (email,))
-        result = cursor.fetchone()
-        conn.close()
-        return result[0] > 0
-    except psycopg2.Error:
-        return False
+    user = db.users.find_one({"email": email})
+    return user is not None
 
 def is_naam_in_database(naam):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT 1 FROM aways WHERE naam = %s", (naam,))
-    result = cursor.fetchone()
-    conn.close()
-    return result is not None
+    away = db.aways.find_one({"naam": naam})
+    return away is not None
 
 def is_authorized():
     user_info = session.get("user")
@@ -152,23 +122,20 @@ def points_list():
         return redirect(url_for("no_access"))
     logged_in_email = session.get('user', {}).get('userinfo', {}).get('email')
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT voornaam, naam, email, puntenaantal FROM users ORDER BY puntenaantal DESC")
-        leden = cursor.fetchall()
-        conn.close()
+        leden = list(db.users.find({}, {"_id": 0, "voornaam": 1, "naam": 1, "email": 1, "puntenaantal": 1}).sort("puntenaantal", -1))
         leden_dict = [
             {
-                'voornaam': lid[0],
-                'naam': lid[1],
-                'email': lid[2],
-                'puntenaantal': lid[3],
-                'is_logged_in': (lid[2] == logged_in_email)
+                'voornaam': lid['voornaam'],
+                'naam': lid['naam'],
+                'email': lid['email'],
+                'puntenaantal': lid['puntenaantal'],
+                'is_logged_in': (lid['email'] == logged_in_email)
             }
             for lid in leden
         ]
         return render_template('points_list.html', leden=leden_dict)
-    except psycopg2.Error:
+    except Exception as e:
+        print(f"Error: {e}")
         return redirect(url_for("dashboard"))
 
 @app.route('/beheer_leden')
@@ -176,14 +143,11 @@ def points_list():
 @admin_required
 def beheer_leden():
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, voornaam, naam FROM users ORDER BY naam, voornaam")
-        leden = cursor.fetchall()
-        conn.close()
-        leden_dict = [{'id': lid[0], 'voornaam': lid[1], 'naam': lid[2]} for lid in leden]
+        leden = list(db.users.find({}, {"_id": 0, "id": 1, "voornaam": 1, "naam": 1}).sort("naam", 1))
+        leden_dict = [{'id': lid['id'], 'voornaam': lid['voornaam'], 'naam': lid['naam']} for lid in leden]
         return render_template('beheer_leden.html', leden=leden_dict)
-    except psycopg2.Error:
+    except Exception as e:
+        print(f"Error: {e}")
         return redirect(url_for("dashboard"))
 
 @app.route('/add_user', methods=['GET', 'POST'])
@@ -208,83 +172,42 @@ def add_user():
         if is_email_in_database(data['email']):
             return render_template('add_user.html', error="E-mailadres bestaat al!", **data)
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute('''INSERT INTO users (voornaam, naam, email, one_account_id, adres_straat, adres_nr, adres_postcode, adres_gemeente, rijksregisternummer, abo_ja_nee, telefoonnummer, puntenaantal)
-                              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                           (data['voornaam'], data['naam'], data['email'], data['one_account_id'], data['adres_straat'], data['adres_nr'], data['adres_postcode'], data['adres_gemeente'], data['rijksregisternummer'], data['abo_ja_nee'], data['telefoonnummer'], data['puntenaantal']))
-            conn.commit()
-            conn.close()
+            db.users.insert_one(data)
             return redirect(url_for('beheer_leden'))
-        except psycopg2.Error:
+        except Exception as e:
+            print(f"Error: {e}")
             return render_template('add_user.html', error="Fout bij het toevoegen van de gebruiker.")
-
-    # Geef lege waarden door voor de eerste keer als de gebruiker de pagina bezoekt
-    empty_data = {
-        'voornaam': '',
-        'naam': '',
-        'email': '',
-        'one_account_id': '',
-        'adres_straat': '',
-        'adres_nr': '',
-        'adres_postcode': '',
-        'adres_gemeente': '',
-        'rijksregisternummer': '',
-        'abo_ja_nee': '',
-        'telefoonnummer': '',
-        'puntenaantal': ''
-    }
-    return render_template('add_user.html', **empty_data)
+    return render_template('add_user.html')
 
 @app.route('/edit_member/<int:id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_member(id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
         if request.method == 'POST':
-            # Haal de form-gegevens op en werk het lid bij
-            voornaam = request.form['voornaam'].title()
-            naam = request.form['naam'].title()
-            email = request.form['email']
-            one_account_id = int(request.form['one_account_id'])
-            adres_straat = request.form['adres_straat'].title()
-            adres_nr = request.form['adres_nr']
-            adres_postcode = int(request.form['adres_postcode'])
-            adres_gemeente = request.form['adres_gemeente'].title()
-            rijksregisternummer = request.form['rijksregisternummer']
-            abo_ja_nee = request.form['abo_ja_nee']
-            telefoonnummer = request.form['telefoonnummer']
-            puntenaantal = int(request.form['puntenaantal'])
-
-            cursor.execute('''UPDATE users SET 
-                              voornaam = %s, naam = %s, email = %s, one_account_id = %s, adres_straat = %s, 
-                              adres_nr = %s, adres_postcode = %s, adres_gemeente = %s, rijksregisternummer = %s, 
-                              abo_ja_nee = %s, telefoonnummer = %s, puntenaantal = %s WHERE id = %s''',
-                           (voornaam, naam, email, one_account_id, adres_straat, adres_nr, adres_postcode,
-                            adres_gemeente, rijksregisternummer, abo_ja_nee, telefoonnummer, puntenaantal, id))
-            conn.commit()
-            conn.close()
+            data = {
+                'voornaam': request.form['voornaam'].title(),
+                'naam': request.form['naam'].title(),
+                'email': request.form['email'],
+                'one_account_id': int(request.form['one_account_id']),
+                'adres_straat': request.form['adres_straat'].title(),
+                'adres_nr': request.form['adres_nr'],
+                'adres_postcode': int(request.form['adres_postcode']),
+                'adres_gemeente': request.form['adres_gemeente'].title(),
+                'rijksregisternummer': request.form['rijksregisternummer'],
+                'abo_ja_nee': request.form['abo_ja_nee'],
+                'telefoonnummer': request.form['telefoonnummer'],
+                'puntenaantal': int(request.form['puntenaantal']),
+            }
+            db.users.update_one({"id": id}, {"$set": data})
             return redirect(url_for('beheer_leden'))
         else:
-            cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
-            member = cursor.fetchone()
-            conn.close()
-
+            member = db.users.find_one({"id": id})
             if not member:
                 return "Lid niet gevonden", 404
-
-            # Zet de member gegevens om naar een dictionary
-            keys = ['id', 'voornaam', 'naam', 'email', 'one_account_id', 'adres_straat', 'adres_nr',
-                    'adres_postcode', 'adres_gemeente', 'rijksregisternummer', 'abo_ja_nee', 'telefoonnummer',
-                    'puntenaantal']
-            member_dict = dict(zip(keys, member))
-
-            # Stuur de gegevens naar de template
-            return render_template('edit_member.html', member=member_dict)
-    except psycopg2.Error:
+            return render_template('edit_member.html', member=member)
+    except Exception as e:
+        print(f"Error: {e}")
         return redirect(url_for("dashboard"))
 
 @app.route('/delete_member/<int:id>', methods=['POST'])
@@ -292,95 +215,54 @@ def edit_member(id):
 @admin_required
 def delete_member(id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM users WHERE id = %s", (id,))
-        conn.commit()
-        conn.close()
+        db.users.delete_one({"id": id})
         return redirect(url_for('beheer_leden'))
-    except psycopg2.Error:
+    except Exception as e:
+        print(f"Error: {e}")
         return redirect(url_for("dashboard"))
 
 @app.route('/inschrijven_away', methods=['GET', 'POST'])
 @login_required
 def inschrijven_away():
-    # Haal de pagina parameter uit de URL (standaard naar 1 als deze niet bestaat)
     page = request.args.get('page', 1, type=int)
+    try:
+        available_aways = list(db.away_details.find({"is_closed": False}).sort("inschrijving_einde", 1))
+        current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
-    # Ophalen van alle available 'aways' met details zoals datum en inschrijvingen
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Haal alle away details op
-    cursor.execute(''' 
-        SELECT ad.id, a.naam, ad.aantal_kaarten, ad.beschrijving, ad.away_datum, ad.inschrijving_einde, ad.is_closed
-        FROM away_details ad
-        JOIN aways a ON ad.away_id = a.id
-        WHERE ad.is_closed = FALSE  -- Gebruik FALSE in plaats van 0
-        ORDER BY ad.inschrijving_einde ASC
-    ''')
-    available_aways = cursor.fetchall()
-
-    # Verkrijg de huidige tijd voor de server-side logica
-    current_time = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-
-    # Controleer of de inschrijving is verlopen en zet is_closed op -1
-    for away in available_aways:
-        away_id = away[0]
-        inschrijving_einde = away[5]  # inschrijving einde tijd uit de database
-        now = datetime.now()
-
-        if datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M:%S') < now:
-            # Als de inschrijvingstijd is verstreken, update de 'is_closed' status naar TRUE
-            cursor.execute('''
-                UPDATE away_details
-                SET is_closed = TRUE
-                WHERE id = %s
-            ''', (away_id,))
-            conn.commit()
-
-    # Bereken het aantal pagina's van inschrijvingen
-    per_page = 1  # We kunnen dit later variëren voor je paginering
-    total_aways = len(available_aways)
-    total_pages = (total_aways + per_page - 1) // per_page  # Berekent het totaal aantal pagina's
-
-    # Bepaal welke inschrijvingen we moeten weergeven voor de huidige pagina
-    start_index = (page - 1) * per_page
-    end_index = min(page * per_page, total_aways)
-
-    # Toon alleen de activiteiten voor de huidige pagina
-    paginated_aways = available_aways[start_index:end_index]
-
-    # Verwerk de inschrijvingen
-    if request.method == 'POST':
         for away in available_aways:
-            away_id = away[0]
-            inschrijving_einde = away[5]  # inschrijving einde tijd uit de database
-            now = datetime.now()
+            if datetime.strptime(away['inschrijving_einde'], '%Y-%m-%dT%H:%M:%S') < datetime.now():
+                db.away_details.update_one({"_id": away['_id']}, {"$set": {"is_closed": True}})
 
-            if datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M:%S') > now:
-                # Hier kun je inschrijving verwerken als de tijd nog niet is verstreken
-                inschrijving_waarde = request.form.get(f'inschrijven_{away_id}')
-                # Verwerk de inschrijving
-                # Bijvoorbeeld, sla de inschrijving op in de database
-                # ...
+        per_page = 1
+        total_aways = len(available_aways)
+        total_pages = (total_aways + per_page - 1) // per_page
+        start_index = (page - 1) * per_page
+        end_index = min(page * per_page, total_aways)
+        paginated_aways = available_aways[start_index:end_index]
 
-    conn.close()
+        if request.method == 'POST':
+            for away in available_aways:
+                if datetime.strptime(away['inschrijving_einde'], '%Y-%m-%dT%H:%M:%S') > datetime.now():
+                    inschrijving_waarde = request.form.get(f'inschrijven_{away["_id"]}')
+                    # Verwerk de inschrijving
+                    # Bijvoorbeeld, sla de inschrijving op in de database
+                    # ...
 
-    return render_template('inschrijven_away.html', available_aways=paginated_aways, current_page=page, total_pages=total_pages, current_time=current_time)
+        return render_template('inschrijven_away.html', available_aways=paginated_aways, current_page=page, total_pages=total_pages, current_time=current_time)
+    except Exception as e:
+        print(f"Error: {e}")
+        return redirect(url_for("dashboard"))
+
 @app.route('/beheren_away')
 @login_required
 @admin_required
 def beheren_away():
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, naam FROM aways ORDER BY naam")
-        aways = cursor.fetchall()
-        conn.close()
-        aways_dict = [{'id': away[0], 'naam': away[1]} for away in aways]
+        aways = list(db.aways.find({}, {"_id": 0, "id": 1, "naam": 1}).sort("naam", 1))
+        aways_dict = [{'id': away['id'], 'naam': away['naam']} for away in aways]
         return render_template('beheren_away.html', aways=aways_dict)
-    except psycopg2.Error:
+    except Exception as e:
+        print(f"Error: {e}")
         return redirect(url_for("dashboard"))
 
 @app.route('/add_away', methods=['GET', 'POST'])
@@ -388,24 +270,16 @@ def beheren_away():
 @admin_required
 def add_away():
     if request.method == 'POST':
-        naam = request.form.get('naam', '').strip().title()  # Zorg dat 'naam' altijd een string is
-
-        if not naam:  # Controleer of naam niet leeg is
+        naam = request.form.get('naam', '').strip().title()
+        if not naam:
             return render_template('add_away.html', error="awaynaam mag niet leeg zijn!", naam="")
-
         if is_naam_in_database(naam):
             return render_template('add_away.html', error="Deze away bestaat al!", naam=naam)
-
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO aways (naam) VALUES (%s)", (naam,))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('beheren_away'))  # Redirect bij succes
-        except psycopg2.Error as e:
+            db.aways.insert_one({"naam": naam})
+            return redirect(url_for('beheren_away'))
+        except Exception as e:
             return render_template('add_away.html', error=f"Fout bij het toevoegen: {e}", naam=naam)
-
     return render_template('add_away.html', naam="")
 
 @app.route('/edit_away/<int:id>', methods=['GET', 'POST'])
@@ -413,26 +287,16 @@ def add_away():
 @admin_required
 def edit_away(id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
         if request.method == 'POST':
             naam = request.form['naam'].title()
-            cursor.execute("UPDATE aways SET naam = %s WHERE id = %s", (naam, id))
-            conn.commit()
-            conn.close()
+            db.aways.update_one({"id": id}, {"$set": {"naam": naam}})
             return redirect(url_for('beheren_away'))
         else:
-            cursor.execute("SELECT id, naam FROM aways WHERE id = %s", (id,))
-            away = cursor.fetchone()
-            conn.close()
-
+            away = db.aways.find_one({"id": id})
             if not away:
                 return "Away niet gevonden", 404
-
-            away_dict = {'id': away[0], 'naam': away[1]}
-            return render_template('edit_away.html', away=away_dict)
-    except psycopg2.Error as e:
+            return render_template('edit_away.html', away=away)
+    except Exception as e:
         return f"Databasefout: {e}", 500
 
 @app.route('/delete_away/<int:id>', methods=['POST'])
@@ -440,55 +304,43 @@ def edit_away(id):
 @admin_required
 def delete_away(id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM aways WHERE id = %s", (id,))
-        conn.commit()
-        conn.close()
+        db.aways.delete_one({"id": id})
         return redirect(url_for('beheren_away'))
-    except psycopg2.Error:
+    except Exception as e:
         return redirect(url_for("dashboard"))
 
 @app.route('/aanmaken_inschrijving_away', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def aanmaken_inschrijving_away():
-    # Ophalen van alle available "aways"
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, naam FROM aways")  # Haal de id en naam op van alle 'aways'
-    available_aways = cursor.fetchall()
-    conn.close()
+    try:
+        available_aways = list(db.aways.find({}, {"_id": 0, "id": 1, "naam": 1}))
+        if request.method == 'POST':
+            away_id = request.form['away_id']
+            aantal_kaarten = request.form['aantal_kaarten']
+            beschrijving = request.form['beschrijving']
+            away_datum = request.form['away_datum']
+            inschrijving_einde = request.form['inschrijving_einde']
 
-    if request.method == 'POST':
-        # Haal de data van het formulier op
-        away_id = request.form['away_id']
-        aantal_kaarten = request.form['aantal_kaarten']
-        beschrijving = request.form['beschrijving']
-        away_datum = request.form['away_datum']
-        inschrijving_einde = request.form['inschrijving_einde']
+            away_datum = datetime.strptime(away_datum, '%Y-%m-%dT%H:%M')
+            inschrijving_einde = datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M')
 
-        # Zet de datum om naar het formaat 'YYYY-MM-DD HH:MM:SS'
-        away_datum = datetime.strptime(away_datum, '%Y-%m-%dT%H:%M')  # De ontvangen datum
-        inschrijving_einde = datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M')  # De ontvangen inschrijving eind datum
+            formatted_away_datum = away_datum.strftime('%d/%m/%Y %H:%M')
+            formatted_inschrijving_einde = inschrijving_einde.strftime('%Y-%m-%dT%H:%M:%S')
 
-        # Zet om naar ISO 8601 formaat
-        formatted_away_datum = away_datum.strftime('%d/%m/%Y %H:%M')
-        formatted_inschrijving_einde = inschrijving_einde.strftime('%Y-%m-%dT%H:%M:%S')
+            db.away_details.insert_one({
+                "away_id": away_id,
+                "aantal_kaarten": aantal_kaarten,
+                "beschrijving": beschrijving,
+                "away_datum": formatted_away_datum,
+                "inschrijving_einde": formatted_inschrijving_einde
+            })
+            return redirect(url_for('inschrijven_away'))
+        return render_template('aanmaken_inschrijving_away.html', available_aways=available_aways)
+    except Exception as e:
+        print(f"Error: {e}")
+        return redirect(url_for("dashboard"))
 
-        # Voeg de inschrijving toe aan de database
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''INSERT INTO away_details (away_id, aantal_kaarten, beschrijving, away_datum, inschrijving_einde) 
-                          VALUES (%s, %s, %s, %s, %s)''',
-                       (away_id, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde))
-        conn.commit()
-        conn.close()
-
-        return redirect(url_for('inschrijven_away'))
-
-    # Render de template en geef de beschikbare 'aways' door
-    return render_template('aanmaken_inschrijving_away.html', available_aways=available_aways)
-
+app.config['DEBUG'] = True
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
