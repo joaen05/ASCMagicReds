@@ -11,15 +11,36 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        html, body {
-            overflow: hidden;
-            height: 100%;
-            margin: 0;
+        /* Altijd scrollen binnen de card */
+        .scrollbar {
+            flex-grow: 1;
+            max-height: 180px;
+            overflow-y: auto; /* Scrollen altijd toegestaan binnen de card */
+            white-space: pre-wrap;
+            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /* Pagina-scrollen alleen op mobiel */
+        @media (max-width: 768px) {
+            html, body {
+                overflow: auto; /* Scrollen toegestaan op mobiel */
+                height: auto;
+            }
+        }
+
+        @media (min-width: 769px) {
+            html, body {
+                overflow: hidden; /* Geen pagina-scrollen op desktop */
+                height: 100%;
+            }
         }
 
         .card {
             margin-bottom: 20px;
-            height: auto; /* Aangepast voor mobiele weergave */
+            height: auto;
         }
 
         .card-header {
@@ -34,17 +55,6 @@
             overflow: hidden;
         }
 
-        .scrollbar {
-            flex-grow: 1;
-            max-height: 180px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            margin-top: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-        }
-
         .pagination {
             justify-content: center;
         }
@@ -53,13 +63,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap; /* Toegevoegd voor mobiele weergave */
+            flex-wrap: wrap;
         }
 
         .form-inline {
             display: flex;
             align-items: center;
-            flex-wrap: wrap; /* Toegevoegd voor mobiele weergave */
+            flex-wrap: wrap;
         }
 
         .form-inline select,
@@ -70,7 +80,7 @@
         /* Aanpassingen voor mobiele weergave */
         @media (max-width: 768px) {
             .card {
-                height: auto; /* Aangepast voor mobiele weergave */
+                height: auto;
             }
 
             .card-header {
@@ -78,36 +88,30 @@
             }
 
             .card-header .d-flex {
-                flex-direction: column; /* Elementen onder elkaar op mobiel */
+                flex-direction: column;
                 align-items: flex-start;
             }
 
             .card-header .d-flex span {
-                margin-bottom: 10px; /* Ruimte tussen awaynaam en datum */
+                margin-bottom: 10px;
             }
 
             .card-header .d-flex .btn-group {
-                margin-top: 10px; /* Ruimte boven de admin-knoppen */
-            }
-
-            .form-inline {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .form-inline select,
-            .form-inline button {
-                margin-left: 0;
                 margin-top: 10px;
             }
 
-            .header-container {
-                flex-direction: column;
-                align-items: flex-start;
+            .form-inline {
+                flex-direction: row;
+                align-items: center;
             }
 
-            .header-container h2 {
-                margin-bottom: 10px;
+            .form-inline select {
+                width: auto;
+                max-width: 80px;
+            }
+
+            .form-inline button {
+                margin-left: 10px;
             }
         }
     </style>
