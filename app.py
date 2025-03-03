@@ -7,7 +7,9 @@ import psycopg2
 from urllib.parse import urlparse
 import os
 from functools import wraps
-from datetime import datetime
+from babel.dates import format_datetime
+import datetime
+
 
 # Laad omgevingsvariabelen uit .env-bestand
 load_dotenv()
@@ -22,8 +24,6 @@ except Exception as e:
     print(f"Database connection error: {e}")
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET_KEY')  # Gebruik APP_SECRET_KEY uit .env
-
-locale.setlocale(locale.LC_TIME, 'nl_NL.UTF-8')
 
 # Auth0 configuratie
 oauth = OAuth(app)
@@ -381,7 +381,7 @@ def inschrijven_away():
 
     conn.close()
 
-    return render_template('inschrijven_away.html', available_aways=paginated_aways, current_page=page, total_pages=total_pages, current_time=current_time)
+    return render_template('inschrijven_away.html', available_aways=paginated_aways, current_page=page, total_pages=total_pages, current_time=current_time,format_datetime=format_datetime)
 @app.route('/beheren_away')
 @login_required
 @admin_required

@@ -78,7 +78,7 @@
                     <div class="card-header">
                         <div class="d-flex justify-content-between">
                             <span>{{ away[1] }}</span>
-                            <span>{{ away[4].strftime('%A %d %B %Y om %H:%M') }}</span>
+                            <span>{{ format_datetime(away[4], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span>
                         </div>
                     </div>
                     <div class="card-body">
