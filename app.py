@@ -307,6 +307,7 @@ def delete_member(id):
 
 from datetime import datetime
 
+
 @app.route('/inschrijven_away', methods=['GET', 'POST'])
 @login_required
 def inschrijven_away():
@@ -504,5 +505,78 @@ def aanmaken_inschrijving_away():
     # Render de template en geef de beschikbare 'aways' door
     return render_template('aanmaken_inschrijving_away.html', available_aways=available_aways)
 
+
+
+
+
+@app.route('/bewerken_away_details/<int:away_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def bewerken_away_details(away_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if request.method == 'POST':
+            # Haal de form-gegevens op en werk de away inschrijving bij
+            away_id_new = request.form['away_id']  # Nieuwe away_id uit de dropdown
+            aantal_kaarten = request.form['aantal_kaarten']
+            beschrijving = request.form['beschrijving']
+            away_datum = request.form['away_datum']
+            inschrijving_einde = request.form['inschrijving_einde']
+
+            # Zet de datum om naar het juiste formaat
+            away_datum = datetime.strptime(away_datum, '%Y-%m-%dT%H:%M')
+            inschrijving_einde = datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M')
+
+            # Zet om naar ISO 8601 formaat
+            formatted_away_datum = away_datum.strftime('%Y-%m-%dT%H:%M:%S')
+            formatted_inschrijving_einde = inschrijving_einde.strftime('%Y-%m-%dT%H:%M:%S')
+
+            # Voer de update uit, inclusief de nieuwe away_id
+            cursor.execute('''UPDATE away_details 
+                              SET away_id = %s, aantal_kaarten = %s, beschrijving = %s, away_datum = %s, inschrijving_einde = %s 
+                              WHERE id = %s''',
+                           (away_id_new, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde, away_id))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('inschrijven_away'))
+        else:
+            # Haal de bestaande gegevens op
+            cursor.execute("SELECT * FROM away_details WHERE id = %s", (away_id,))
+            away_details = cursor.fetchone()
+
+            # Haal alle beschikbare aways op voor de dropdown
+            cursor.execute("SELECT id, naam FROM aways")
+            available_aways = cursor.fetchall()
+
+            conn.close()
+
+            if not away_details:
+                return "Away inschrijving niet gevonden", 404
+
+            # Zet de gegevens om naar een dictionary
+            keys = ['id', 'away_id', 'beschrijving', 'aantal_kaarten', 'away_datum', 'inschrijving_einde', 'is_closed']
+            away_details_dict = dict(zip(keys, away_details))
+
+            # Stuur de gegevens naar de template
+            return render_template('bewerken_away_details.html', away_details=away_details_dict, available_aways=available_aways)
+    except psycopg2.Error:
+        return redirect(url_for("dashboard"))
+
+
+@app.route('/verwijder_away_details/<int:away_id>', methods=['POST'])
+@login_required
+@admin_required
+def verwijder_away_details(away_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM away_details WHERE id = %s", (away_id,))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('inschrijven_away'))
+    except psycopg2.Error:
+        return redirect(url_for("dashboard"))
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)

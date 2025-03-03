@@ -77,7 +77,17 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="d-flex justify-content-between">
-                            <span>{{ away[1] }}</span>
+                            <span>{{ away[1] }}{% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
+                                        <a href="{{ url_for('bewerken_away_details', away_id=away[0]) }}" class="btn btn-sm btn-warning">
+                                            <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
+                                        </a>
+                                        <form action="{{ url_for('verwijder_away_details', away_id=away[0]) }}" method="POST" style="display:inline;" id="delete-form-{{ away[0] }}">
+                                            <button type="button" class="btn btn-sm btn-danger action-button" onclick="confirmDelete({{ away[0] }})">
+                                                <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 25px; height: 25px;">
+                                            </button>
+                                        </form>
+                                {% endif %}
+                            </span>
                             <span>{{ format_datetime(away[4], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span>
                         </div>
                     </div>
@@ -128,6 +138,14 @@
     </div>
 
 <script>
+
+
+    function confirmDelete(awayID) {
+        var confirmation = confirm("Weet je zeker dat je deze away wilt verwijderen?");
+        if (confirmation) {
+            document.getElementById('delete-form-' + awayID).submit();
+        }
+    }
     // Automatische refresh bij openen van de pagina
     window.onload = function() {
         if (!sessionStorage.getItem("reloaded")) {
