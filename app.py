@@ -354,6 +354,23 @@ def inschrijven_away():
             ''', (away_id,))
             conn.commit()
 
+    # Haal de huidige gebruiker op
+    user_email = session.get('user', {}).get('userinfo', {}).get('email')
+    cursor.execute("SELECT id FROM users WHERE email = %s", (user_email,))
+    user_id_tuple = cursor.fetchone()
+    user_id = user_id_tuple[0] if user_id_tuple else None
+
+    # Controleer voor elke away of de gebruiker al heeft ingeschreven
+    away_inschrijving_status = {}
+    if user_id:
+        for away in available_aways:
+            away_id = away[0]
+            cursor.execute("SELECT 1 FROM user_aways WHERE user_id = %s AND away_id = %s", (user_id, away_id))
+            if cursor.fetchone():
+                away_inschrijving_status[away_id] = "ja"
+            else:
+                away_inschrijving_status[away_id] = "nee"
+
     # Bereken het aantal pagina's van inschrijvingen
     per_page = 1  # We kunnen dit later variëren voor je paginering
     total_aways = len(available_aways)
@@ -366,23 +383,11 @@ def inschrijven_away():
     # Toon alleen de activiteiten voor de huidige pagina
     paginated_aways = available_aways[start_index:end_index]
 
-    # Verwerk de inschrijvingen
-    if request.method == 'POST':
-        for away in available_aways:
-            away_id = away[0]
-            inschrijving_einde = away[5]  # inschrijving einde tijd uit de database
-            now = datetime.now()
-
-            if inschrijving_einde > now:
-                # Hier kun je inschrijving verwerken als de tijd nog niet is verstreken
-                inschrijving_waarde = request.form.get(f'inschrijven_{away_id}')
-                # Verwerk de inschrijving
-                # Bijvoorbeeld, sla de inschrijving op in de database
-                # ...
-
     conn.close()
 
-    return render_template('inschrijven_away.html', available_aways=paginated_aways, current_page=page, total_pages=total_pages, current_time=current_time,format_datetime=format_datetime)
+    return render_template('inschrijven_away.html', available_aways=paginated_aways, current_page=page,
+                           total_pages=total_pages, current_time=current_time, format_datetime=format_datetime,
+                           away_inschrijving_status=away_inschrijving_status)
 @app.route('/beheren_away')
 @login_required
 @admin_required
@@ -585,38 +590,60 @@ def verwijder_away_details(away_id):
 @login_required
 def verwerk_inschrijving():
     try:
-        # Haal de user_id, away_details_id en de geselecteerde waarde op uit het formulier
-        user_id = request.form['user_id']
-        away_details_id = request.form['away_details_id']
-        inschrijving_waarde = request.form.get(f'inschrijven_{away_details_id}')  # Dynamische naam van het dropdown-veld
+        user_email = session.get('user', {}).get('userinfo', {}).get('email')
 
-
-        print(user_id,away_details_id,inschrijving_waarde)
-        # Verbind met de database
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Voer een INSERT of UPDATE query uit om de inschrijving op te slaan
-        cursor.execute('''
-            INSERT INTO user_aways (user_id, away_details_id, inschrijving_waarde)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (user_id, away_details_id) DO UPDATE
-            SET inschrijving_waarde = EXCLUDED.inschrijving_waarde
-        ''', (user_id, away_details_id, inschrijving_waarde))
+        cursor.execute("SELECT id FROM users WHERE email = %s", (user_email,))
+        user_id_tuple = cursor.fetchone()
 
-        # Commit de wijzigingen en sluit de verbinding
-        conn.commit()
-        conn.close()
+        if user_id_tuple:
+            user_id = user_id_tuple[0]  # Haal het id uit de tuple
+        else:
+            user_id = None  # Geen resultaat gevonden        conn.close()
 
-        # Haal de huidige inschrijvingsstatus op
-        cursor.execute('SELECT inschrijving_waarde FROM inschrijvingen WHERE user_id = %s AND away_details_id = %s',
-                       (user_id, away_details_id))
-        huidige_inschrijving = cursor.fetchone()
-        huidige_waarde = huidige_inschrijving[0] if huidige_inschrijving else 'nee'
+        away_details_id = request.form.get('away_details_id')
+        inschrijving_waarde = request.form.get(f'inschrijven_{away_details_id}')
 
-        # Stuur de gebruiker terug naar de vorige pagina of geef een succesmelding
-        return redirect(url_for('inschrijven_away'),huidige_waarde=huidige_waarde)
+        if inschrijving_waarde == "ja":
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            cursor.execute('''SELECT user_id, away_id FROM user_aways WHERE user_id = %s AND away_id = %s''',
+                           (user_id, away_details_id))
+
+            if cursor.fetchone() is None:
+
+                cursor.execute('''
+                    INSERT INTO user_aways (user_id, away_id)
+                    VALUES (%s, %s)
+                ''', (user_id, away_details_id))
+
+                conn.commit()
+                print("Commit succesvol!")  # Debugging
+                conn.close()
+            return redirect(url_for('inschrijven_away', inschrijving_waarde=inschrijving_waarde))
+        else:
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            cursor.execute('''SELECT user_id, away_id FROM user_aways WHERE user_id = %s AND away_id = %s''',
+                           (user_id, away_details_id))
+
+            if cursor.fetchone():
+                cursor.execute('''
+                                DELETE FROM user_aways WHERE user_id = %s AND away_id = %s''',
+                           (user_id, away_details_id))
+
+                conn.commit()
+                print("Commit succesvol!")  # Debugging
+                conn.close()
+
+            return redirect(url_for('inschrijven_away',inschrijving_waarde = inschrijving_waarde))
     except Exception as e:
+        print(f"Fout: {e}")
         return f"Er is een fout opgetreden: {e}", 500
 
 
