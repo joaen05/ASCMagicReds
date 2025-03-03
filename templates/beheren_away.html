@@ -11,7 +11,6 @@
         <a href="{{ url_for('add_away') }}" class="btn btn-primary btn-sm">Away toevoegen</a>
     </div>
 
-    <!-- Voeg een div toe om de tabel in te wikkelen en de hoogte te beperken -->
     <div style="max-height: calc(100vh - 200px); overflow-y: auto;">
         <table class="table table-striped">
             <thead class="sticky-header">
@@ -25,11 +24,9 @@
                 <tr>
                     <td class="awaynaam">{{ away.naam }}</td>
                     <td>
-                        <!-- Bewerkknop -->
                         <a href="{{ url_for('edit_away', id=away.id) }}" class="btn btn-sm btn-warning">
                             <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 20px; height: 20px;">
                         </a>
-                        <!-- Verwijderknop met formulier en bevestiging -->
                         <form action="{{ url_for('delete_away', id=away.id) }}" method="POST" style="display:inline;" id="delete-form-{{ away.id }}">
                             <button type="button" class="btn btn-sm btn-danger action-button" onclick="confirmDelete({{ away.id }})">
                                 <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 20px; height: 20px;">
@@ -72,27 +69,41 @@
     }
 </script>
 
-<!-- Voeg deze CSS toe om te voorkomen dat de hele pagina scrollt -->
 <style>
     html, body {
         height: 100%;
         margin: 0;
-        overflow: hidden; /* Voorkomt scrollen op de hele pagina */
+        overflow: hidden;
     }
     .container {
-        height: calc(85vh - 56px); /* Pas de hoogte aan op basis van de hoogte van de navbar */
+        height: calc(85vh - 56px);
         display: flex;
         flex-direction: column;
     }
     .table-container {
         flex: 1;
-        overflow-y: auto; /* Scrollbar alleen voor de tabel */
+        overflow-y: auto;
     }
     .sticky-header {
         position: sticky;
         top: 0;
-        background-color: white; /* Zorg ervoor dat de achtergrondkleur overeenkomt met de tabel */
-        z-index: 1; /* Zorg ervoor dat de koprij boven de andere rijen blijft */
+        background-color: white;
+        z-index: 1;
+    }
+
+    @media (max-width: 768px) {
+        .table th, .table td {
+            font-size: 14px;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .form-control-sm {
+            font-size: 14px;
+        }
     }
 </style>
 {% endblock %}

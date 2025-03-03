@@ -6,16 +6,32 @@
     <title>Gebruiker Toevoegen</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-     <style>
-        /* Verberg de spinner (pijltjes) in het number input veld */
+    <style>
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
+            -webkit-appearance: none;
+            margin: 0;
         }
 
         input[type="number"] {
-          -moz-appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
+        @media (max-width: 768px) {
+            .btn-secondary {
+                top: 5px;
+                right: 10px;
+                font-size: 14px;
+                padding: 5px 10px;
+            }
+
+            .form-control {
+                font-size: 14px;
+            }
+
+            .form-row {
+                margin-bottom: 10px;
+            }
         }
     </style>
 </head>

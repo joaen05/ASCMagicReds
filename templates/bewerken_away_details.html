@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
     <style>
-        /* Verberg de spinner (pijltjes) in het number input veld */
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -17,6 +16,23 @@
 
         input[type="number"] {
             -moz-appearance: textfield;
+        }
+
+        @media (max-width: 768px) {
+            .btn-secondary {
+                top: 5px;
+                right: 10px;
+                font-size: 14px;
+                padding: 5px 10px;
+            }
+
+            .form-control {
+                font-size: 14px;
+            }
+
+            .form-row {
+                margin-bottom: 10px;
+            }
         }
     </style>
 </head>
@@ -67,18 +83,16 @@
         </form>
     </div>
 
-    <!-- Voeg jQuery en Select2 toe -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
-            $('#away_id').select2();  // Activeer de zoekbare dropdown
+            $('#away_id').select2();
         });
 
-        // Datumwaarden correct instellen in datetime-local veld
         function formatDateToInput(datetimeStr) {
             if (!datetimeStr) return "";
-            return datetimeStr.replace(" ", "T");  // Zet spatie om naar 'T' voor datetime-local input
+            return datetimeStr.replace(" ", "T");
         }
 
         document.getElementById('away_datum').value = formatDateToInput("{{ away_details['away_datum'] }}");

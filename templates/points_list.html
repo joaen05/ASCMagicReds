@@ -14,7 +14,7 @@
         <table class="table table-striped">
             <thead class="sticky-header">
                 <tr>
-                    <th>#</th> <!-- Kolom voor plaatsnummer -->
+                    <th>#</th>
                     <th>Voornaam</th>
                     <th>Achternaam</th>
                     <th>Puntenaantal</th>
@@ -22,8 +22,8 @@
             </thead>
             <tbody id="ledenTable">
                 {% for lid in leden %}
-                <tr {% if lid.is_logged_in %}class="table-primary"{% endif %}> <!-- Fluoriseer de ingelogde gebruiker -->
-                    <td>{{ loop.index }}</td> <!-- Index voor plaatsnummer -->
+                <tr {% if lid.is_logged_in %}class="table-primary"{% endif %}>
+                    <td>{{ loop.index }}</td>
                     <td class="voornaam">{{ lid.voornaam }}</td>
                     <td>{{ lid.naam }}</td>
                     <td>{{ lid.puntenaantal }}</td>
@@ -43,7 +43,7 @@
         tr = table.getElementsByTagName("tr");
 
         for (i = 0; i < tr.length; i++) {
-            td = tr[i].getElementsByClassName("voornaam")[0]; // Zoek nu op voornaam
+            td = tr[i].getElementsByClassName("voornaam")[0];
             if (td) {
                 txtValue = td.textContent || td.innerText;
                 if (txtValue.toLowerCase().includes(filter)) {
@@ -60,22 +60,32 @@
     html, body {
         height: 100%;
         margin: 0;
-        overflow: hidden; /* Voorkomt scrollen op de hele pagina */
+        overflow: hidden;
     }
     .container {
-        height: calc(85vh - 56px); /* Pas de hoogte aan op basis van de hoogte van de navbar */
+        height: calc(85vh - 56px);
         display: flex;
         flex-direction: column;
     }
     .table-container {
         flex: 1;
-        overflow-y: auto; /* Scrollbar alleen voor de tabel */
+        overflow-y: auto;
     }
     .sticky-header {
         position: sticky;
         top: 0;
-        background-color: white; /* Zorg ervoor dat de achtergrondkleur overeenkomt met de tabel */
-        z-index: 1; /* Zorg ervoor dat de koprij boven de andere rijen blijft */
+        background-color: white;
+        z-index: 1;
+    }
+
+    @media (max-width: 768px) {
+        .table th, .table td {
+            font-size: 14px;
+        }
+
+        .form-control-sm {
+            font-size: 14px;
+        }
     }
 </style>
 {% endblock %}

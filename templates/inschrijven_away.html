@@ -15,52 +15,87 @@
             overflow: hidden;
             height: 100%;
             margin: 0;
-}
+        }
+
         .card {
             margin-bottom: 20px;
-            height: 270px; /* Vaste hoogte voor de card */
-            display: flex;
-            flex-direction: column;
+            height: auto; /* Aangepast voor mobiele weergave */
         }
+
         .card-header {
             font-size: 18px;
             font-weight: bold;
         }
+
         .card-body {
             display: flex;
             flex-direction: column;
             flex-grow: 1;
-            overflow: hidden; /* Voeg dit toe om ervoor te zorgen dat de inhoud niet buiten de card valt */
+            overflow: hidden;
         }
-        .scrollbar{
-            flex-grow: 1; /* Neemt alle beschikbare ruimte in */
+
+        .scrollbar {
+            flex-grow: 1;
             max-height: 180px;
-            overflow-y: auto; /* Scrollbar voor de beschrijving */
-            white-space: pre-wrap; /* Behoudt newlines en spaties */
+            overflow-y: auto;
+            white-space: pre-wrap;
             margin-top: 0;
             display: flex;
             flex-direction: column;
             gap: 0;
-
         }
 
         .pagination {
             justify-content: center;
         }
+
         .header-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap; /* Toegevoegd voor mobiele weergave */
         }
+
         .form-inline {
             display: flex;
             align-items: center;
+            flex-wrap: wrap; /* Toegevoegd voor mobiele weergave */
         }
+
         .form-inline select,
         .form-inline button {
             margin-left: 10px;
         }
 
+        @media (max-width: 768px) {
+            .card {
+                height: auto; /* Aangepast voor mobiele weergave */
+            }
+
+            .card-header {
+                font-size: 16px;
+            }
+
+            .form-inline {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .form-inline select,
+            .form-inline button {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+
+            .header-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-container h2 {
+                margin-bottom: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -94,7 +129,7 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-8">
-                                <div class = "scrollbar">
+                                <div class="scrollbar">
                                     <p><strong>Beschrijving:</strong> {{ away[3] }}</p>
                                 </div>
                             </div>
@@ -102,7 +137,7 @@
                                 <form method="POST" action="{{ url_for('verwerk_inschrijving') }}">
                                     <input type="hidden" name="current_page" value="{{ current_page }}">
                                     <div class="form-group">
-                                        <strong>inschrijvingsdeadline:</strong>
+                                        <strong>Inschrijvingsdeadline:</strong>
                                         <span id="countdown_{{ away[0] }}">{{ away[5] }}</span>
                                     </div>
                                     <div class="form-inline">
@@ -117,7 +152,6 @@
                                     </div>
                                 </form>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -142,23 +176,12 @@
     </div>
 
 <script>
-
-
     function confirmDelete(awayID) {
         var confirmation = confirm("Weet je zeker dat je deze away wilt verwijderen?");
         if (confirmation) {
             document.getElementById('delete-form-' + awayID).submit();
         }
     }
-    // Automatische refresh bij openen van de pagina
-    window.onload = function() {
-        if (!sessionStorage.getItem("reloaded")) {
-            sessionStorage.setItem("reloaded", "true");
-            location.reload();
-        } else {
-            sessionStorage.removeItem("reloaded");
-        }
-    };
 
     function updateCountdown(endTime, elementId, buttonId) {
         const countdownElement = document.getElementById(elementId);
