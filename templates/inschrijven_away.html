@@ -67,6 +67,7 @@
             margin-left: 10px;
         }
 
+        /* Aanpassingen voor mobiele weergave */
         @media (max-width: 768px) {
             .card {
                 height: auto; /* Aangepast voor mobiele weergave */
@@ -74,6 +75,19 @@
 
             .card-header {
                 font-size: 16px;
+            }
+
+            .card-header .d-flex {
+                flex-direction: column; /* Elementen onder elkaar op mobiel */
+                align-items: flex-start;
+            }
+
+            .card-header .d-flex span {
+                margin-bottom: 10px; /* Ruimte tussen awaynaam en datum */
+            }
+
+            .card-header .d-flex .btn-group {
+                margin-top: 10px; /* Ruimte boven de admin-knoppen */
             }
 
             .form-inline {
@@ -111,19 +125,21 @@
             {% for away in available_aways %}
                 <div class="card">
                     <div class="card-header">
-                        <div class="d-flex justify-content-between">
-                            <span>{{ away[1] }}{% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
-                                        <a href="{{ url_for('bewerken_away_details', away_id=away[0]) }}" class="btn btn-sm btn-warning">
-                                            <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
-                                        </a>
-                                        <form action="{{ url_for('verwijder_away_details', away_id=away[0]) }}" method="POST" style="display:inline;" id="delete-form-{{ away[0] }}">
-                                            <button type="button" class="btn btn-sm btn-danger action-button" onclick="confirmDelete({{ away[0] }})">
-                                                <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 25px; height: 25px;">
-                                            </button>
-                                        </form>
-                                {% endif %}
-                            </span>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>{{ away[1] }}</span>
                             <span>{{ format_datetime(away[4], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span>
+                            {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
+                                <div class="btn-group">
+                                    <a href="{{ url_for('bewerken_away_details', away_id=away[0]) }}" class="btn btn-sm btn-warning">
+                                        <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
+                                    </a>
+                                    <form action="{{ url_for('verwijder_away_details', away_id=away[0]) }}" method="POST" style="display:inline;" id="delete-form-{{ away[0] }}">
+                                        <button type="button" class="btn btn-sm btn-danger action-button" onclick="confirmDelete({{ away[0] }})">
+                                            <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 25px; height: 25px;">
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="card-body">
