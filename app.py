@@ -591,6 +591,7 @@ def verwijder_away_details(away_id):
 def verwerk_inschrijving():
     try:
         user_email = session.get('user', {}).get('userinfo', {}).get('email')
+        current_page = request.form.get('current_page', 1, type=int)  # Haal de huidige pagina op
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -601,34 +602,25 @@ def verwerk_inschrijving():
         if user_id_tuple:
             user_id = user_id_tuple[0]  # Haal het id uit de tuple
         else:
-            user_id = None  # Geen resultaat gevonden        conn.close()
+            user_id = None  # Geen resultaat gevonden
 
         away_details_id = request.form.get('away_details_id')
         inschrijving_waarde = request.form.get(f'inschrijven_{away_details_id}')
 
         if inschrijving_waarde == "ja":
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
             cursor.execute('''SELECT user_id, away_id FROM user_aways WHERE user_id = %s AND away_id = %s''',
                            (user_id, away_details_id))
 
             if cursor.fetchone() is None:
-
                 cursor.execute('''
                     INSERT INTO user_aways (user_id, away_id)
                     VALUES (%s, %s)
                 ''', (user_id, away_details_id))
 
                 conn.commit()
-                print("Commit succesvol!")  # Debugging
                 conn.close()
-            return redirect(url_for('inschrijven_away', inschrijving_waarde=inschrijving_waarde))
+            return redirect(url_for('inschrijven_away', page=current_page))  # Terug naar de huidige pagina
         else:
-
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
             cursor.execute('''SELECT user_id, away_id FROM user_aways WHERE user_id = %s AND away_id = %s''',
                            (user_id, away_details_id))
 
@@ -638,14 +630,12 @@ def verwerk_inschrijving():
                            (user_id, away_details_id))
 
                 conn.commit()
-                print("Commit succesvol!")  # Debugging
                 conn.close()
 
-            return redirect(url_for('inschrijven_away',inschrijving_waarde = inschrijving_waarde))
+            return redirect(url_for('inschrijven_away', page=current_page))  # Terug naar de huidige pagina
     except Exception as e:
         print(f"Fout: {e}")
         return f"Er is een fout opgetreden: {e}", 500
-
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
