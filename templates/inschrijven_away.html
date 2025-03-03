@@ -106,11 +106,15 @@
                                     </div>
                                     <div class="form-inline">
                                         <label for="inschrijven_{{ away[0] }}">Inschrijven:</label>
-                                        <select class="form-control" id="inschrijven_{{ away[0] }}" name="inschrijven_{{ away[0] }}">
-                                            <option value="nee" selected>Nee</option>
-                                            <option value="ja">Ja</option>
-                                        </select>
-                                        <button type="submit" class="btn btn-primary" id="submit_{{ away[0] }}" {% if away[5] < current_time %} disabled {% endif %}>Opslaan</button>
+                                        <form method="POST" action="{{ url_for('verwerk_inschrijving') }}">
+                                            <input type="hidden" name="user_id" value="{{ session['user']['userinfo']['id'] }}">
+                                            <input type="hidden" name="away_details_id" value="{{ away[0] }}">
+                                            <select class="form-control" id="inschrijven_{{ away[0] }}" name="inschrijven_{{ away[0] }}">
+                                                <option value="nee" {% if huidige_waarde == 'nee' %}selected{% endif %}>Nee</option>
+                                                <option value="ja" {% if huidige_waarde == 'ja' %}selected{% endif %}>Ja</option>
+                                            </select>
+                                            <button type="submit" class="btn btn-primary" id="submit_{{ away[0] }}" {% if away[5] < current_time %} disabled {% endif %}>Opslaan</button>
+                                        </form>
                                     </div>
                                 </form>
                             </div>

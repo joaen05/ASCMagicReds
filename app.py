@@ -373,7 +373,7 @@ def inschrijven_away():
             inschrijving_einde = away[5]  # inschrijving einde tijd uit de database
             now = datetime.now()
 
-            if datetime.strptime(inschrijving_einde, '%Y-%m-%dT%H:%M:%S') > now:
+            if inschrijving_einde > now:
                 # Hier kun je inschrijving verwerken als de tijd nog niet is verstreken
                 inschrijving_waarde = request.form.get(f'inschrijven_{away_id}')
                 # Verwerk de inschrijving
@@ -578,5 +578,47 @@ def verwijder_away_details(away_id):
         return redirect(url_for('inschrijven_away'))
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
+
+
+
+@app.route('/verwerk_inschrijving', methods=['POST'])
+@login_required
+def verwerk_inschrijving():
+    try:
+        # Haal de user_id, away_details_id en de geselecteerde waarde op uit het formulier
+        user_id = request.form['user_id']
+        away_details_id = request.form['away_details_id']
+        inschrijving_waarde = request.form.get(f'inschrijven_{away_details_id}')  # Dynamische naam van het dropdown-veld
+
+
+        print(user_id,away_details_id,inschrijving_waarde)
+        # Verbind met de database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Voer een INSERT of UPDATE query uit om de inschrijving op te slaan
+        cursor.execute('''
+            INSERT INTO user_aways (user_id, away_details_id, inschrijving_waarde)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_id, away_details_id) DO UPDATE
+            SET inschrijving_waarde = EXCLUDED.inschrijving_waarde
+        ''', (user_id, away_details_id, inschrijving_waarde))
+
+        # Commit de wijzigingen en sluit de verbinding
+        conn.commit()
+        conn.close()
+
+        # Haal de huidige inschrijvingsstatus op
+        cursor.execute('SELECT inschrijving_waarde FROM inschrijvingen WHERE user_id = %s AND away_details_id = %s',
+                       (user_id, away_details_id))
+        huidige_inschrijving = cursor.fetchone()
+        huidige_waarde = huidige_inschrijving[0] if huidige_inschrijving else 'nee'
+
+        # Stuur de gebruiker terug naar de vorige pagina of geef een succesmelding
+        return redirect(url_for('inschrijven_away'),huidige_waarde=huidige_waarde)
+    except Exception as e:
+        return f"Er is een fout opgetreden: {e}", 500
+
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
