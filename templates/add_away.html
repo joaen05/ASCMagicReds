@@ -8,30 +8,37 @@
     <link rel="stylesheet" href="styles.css">
     <style>
         @media (max-width: 768px) {
-            .btn-secondary {
-                top: 5px;
-                right: 10px;
-                font-size: 14px;
-                padding: 5px 10px;
-            }
-
             .form-control {
                 font-size: 14px;
             }
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .form-actions .btn {
+            margin: 0 5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Voeg een nieuwe Away toe</h2>
-        <a href="{{ url_for('beheren_away') }}" class="btn btn-secondary position-absolute" style="top: 10px; right: 80px;">Ga terug</a>
         <br>
         <form method="POST" id="awaysForm">
             <div class="form-group">
                 <label for="naam">Naam:</label>
                 <input type="text" class="form-control" id="naam" name="naam" required>
             </div>
-            <button type="submit" class="btn btn-primary">Toevoegen</button>
+
+            <div class="form-actions">
+                <a href="{{ url_for('beheren_away') }}" class="btn btn-secondary">Ga terug</a>
+                <button type="submit" class="btn btn-primary">Toevoegen</button>
+            </div>
         </form>
 
         {% if error %}

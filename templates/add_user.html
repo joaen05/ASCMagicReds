@@ -18,13 +18,6 @@
         }
 
         @media (max-width: 768px) {
-            .btn-secondary {
-                top: 5px;
-                right: 10px;
-                font-size: 14px;
-                padding: 5px 10px;
-            }
-
             .form-control {
                 font-size: 14px;
             }
@@ -33,13 +26,22 @@
                 margin-bottom: 10px;
             }
         }
+
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .form-actions .btn {
+            margin: 0 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Voeg een nieuw lid toe</h2>
-        <a href="{{ url_for('beheer_leden') }}" class="btn btn-secondary position-absolute" style="top: 10px; right: 80px;">Ga terug</a>
-
         <br>
         <form method="POST" id="userForm" onsubmit="return validateForm()">
             <div class="form-row">
@@ -102,7 +104,11 @@
                     <label for="puntenaantal">Puntenaantal:</label>
                     <input type="number" class="form-control" id="puntenaantal" name="puntenaantal" value="{{ puntenaantal }}" required>
                 </div>
-            <button type="submit" class="btn btn-primary">Toevoegen</button>
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ url_for('beheer_leden') }}" class="btn btn-secondary">Ga terug</a>
+                <button type="submit" class="btn btn-primary">Toevoegen</button>
             </div>
         </form>
 
