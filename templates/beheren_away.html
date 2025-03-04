@@ -16,6 +16,7 @@
             <thead class="sticky-header">
                 <tr>
                     <th>Awaynaam</th>
+                    <th>Waarde</th>
                     <th>Acties</th>
                 </tr>
             </thead>
@@ -23,8 +24,9 @@
                 {% for away in aways %}
                 <tr>
                     <td class="awaynaam">{{ away.naam }}</td>
+                    <td class="awaywaarde">{{ away.waarde }}</td>
                     <td>
-                        <a href="{{ url_for('edit_away', id=away.id) }}" class="btn btn-sm btn-warning">
+                        <a href="{{ url_for('edit_away', id=away.id) }}" class="btn btn-sm btn-warning action-button">
                             <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 20px; height: 20px;">
                         </a>
                         <form action="{{ url_for('delete_away', id=away.id) }}" method="POST" style="display:inline;" id="delete-form-{{ away.id }}">
@@ -91,18 +93,55 @@
         z-index: 1;
     }
 
+    /* Pas de breedte van de kolommen aan */
+    .table th, .table td {
+        padding: 8px; /* Pas de padding aan indien nodig */
+    }
+
+    .table th:nth-child(1), .table td:nth-child(1) {
+        width: 50%; /* Awaynaam kolom breedte */
+    }
+
+    .table th:nth-child(2), .table td:nth-child(2) {
+        width: 20%; /* Waarde kolom breedte */
+    }
+
+    .table th:nth-child(3), .table td:nth-child(3) {
+        width: 30%; /* Acties kolom breedte */
+    }
+
+    /* Verminder de marge tussen de knoppen */
+    .action-button {
+        margin-left: 7px; /* Pas deze waarde aan om de marge te verkleinen */
+    }
+
+
+
     @media (max-width: 768px) {
         .table th, .table td {
             font-size: 14px;
         }
 
         .btn-sm {
-            padding: 5px 10px;
+            padding: 3px 6px; /* Behoud de aangepaste padding voor mobiel */
             font-size: 12px;
         }
 
         .form-control-sm {
             font-size: 14px;
+        }
+
+        /* Pas de breedte van de kolommen aan voor mobiele weergave */
+        .table th:nth-child(1), .table td:nth-child(1) {
+            width: 40%; /* Awaynaam kolom breedte voor mobiel */
+        }
+
+        .table th:nth-child(2), .table td:nth-child(2) {
+            width: 20%; /* Waarde kolom breedte voor mobiel */
+        }
+
+        .table th:nth-child(3), .table td:nth-child(3) {
+            width: 40%; /* Acties kolom breedte voor mobiel */
         }
     }
 </style>

@@ -438,13 +438,14 @@ def beheren_away():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, naam FROM aways ORDER BY naam")
+        cursor.execute("SELECT id, naam,waarde FROM aways ORDER BY naam")
         aways = cursor.fetchall()
         conn.close()
-        aways_dict = [{'id': away[0], 'naam': away[1]} for away in aways]
+        aways_dict = [{'id': away[0], 'naam': away[1],'waarde': away[2]} for away in aways]
         return render_template('beheren_away.html', aways=aways_dict)
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
+
 
 @app.route('/add_away', methods=['GET', 'POST'])
 @login_required
@@ -452,25 +453,32 @@ def beheren_away():
 def add_away():
     if request.method == 'POST':
         naam = request.form.get('naam', '').strip().title()  # Zorg dat 'naam' altijd een string is
+        waarde = request.form.get('waarde_away')
 
-        if not naam:  # Controleer of naam niet leeg is
-            return render_template('add_away.html', error="awaynaam mag niet leeg zijn!", naam="")
+        if not naam or not waarde:
+            return render_template('add_away.html', error="Vul alle velden in!", naam=naam, waarde=waarde)
+
+        try:
+            waarde = int(waarde)  # Zorg ervoor dat de waarde een integer is
+        except ValueError:
+            return render_template('add_away.html', error="Waarde moet een getal zijn!", naam=naam, waarde=waarde)
 
         if is_naam_in_database(naam):
-            return render_template('add_away.html', error="Deze away bestaat al!", naam=naam)
+            return render_template('add_away.html', error="Deze away bestaat al!", naam=naam, waarde=waarde)
 
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO aways (naam) VALUES (%s)", (naam,))
+            cursor.execute("INSERT INTO aways (naam, waarde) VALUES (%s, %s)", (naam, waarde))
             conn.commit()
             conn.close()
             return redirect(url_for('beheren_away'))  # Redirect bij succes
         except psycopg2.Error as e:
-            return render_template('add_away.html', error=f"Fout bij het toevoegen: {e}", naam=naam)
-
-    return render_template('add_away.html', naam="")
-
+            print(f"Databasefout: {e}")  # Debug-print
+            return render_template('add_away.html', error=f"Databasefout: {e}", naam=naam, waarde=waarde)
+    else:
+        # Render het formulier voor GET-verzoeken
+        return render_template('add_away.html', naam="", waarde="")
 @app.route('/edit_away/<int:id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -480,24 +488,36 @@ def edit_away(id):
         cursor = conn.cursor()
 
         if request.method == 'POST':
+            # Haal de formuliergegevens op
             naam = request.form['naam'].title()
-            cursor.execute("UPDATE aways SET naam = %s WHERE id = %s", (naam, id))
+            waarde = request.form['waarde_away']
+
+            # Valideer de waarde
+            try:
+                waarde = int(waarde)  # Zorg ervoor dat de waarde een integer is
+            except ValueError:
+                return render_template('edit_away.html', error="Waarde moet een getal zijn!", away={'id': id, 'naam': naam, 'waarde': waarde})
+
+            # Werk de away bij in de database
+            cursor.execute("UPDATE aways SET naam = %s, waarde = %s WHERE id = %s", (naam, waarde, id))
             conn.commit()
             conn.close()
-            return redirect(url_for('beheren_away'))
+            return redirect(url_for('beheren_away'))  # Redirect naar de beheerpagina na succes
         else:
-            cursor.execute("SELECT id, naam FROM aways WHERE id = %s", (id,))
+            # Haal de bestaande gegevens van de away op
+            cursor.execute("SELECT id, naam, waarde FROM aways WHERE id = %s", (id,))
             away = cursor.fetchone()
             conn.close()
 
             if not away:
                 return "Away niet gevonden", 404
 
-            away_dict = {'id': away[0], 'naam': away[1]}
+            # Maak een dictionary van de opgehaalde gegevens
+            away_dict = {'id': away[0], 'naam': away[1], 'waarde': away[2]}
             return render_template('edit_away.html', away=away_dict)
     except psycopg2.Error as e:
-        return f"Databasefout: {e}", 500
-
+        print(f"Databasefout: {e}")  # Debug-print
+        return render_template('edit_away.html', error=f"Databasefout: {e}", away={'id': id, 'naam': '', 'waarde': ''})
 @app.route('/delete_away/<int:id>', methods=['POST'])
 @login_required
 @admin_required

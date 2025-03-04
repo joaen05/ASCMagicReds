@@ -13,13 +13,29 @@
     <style>
         .scrollbar {
             flex-grow: 1;
-            max-height: 300px;
+            max-height: 180px;
+            min-height: 180px;
             overflow-y: auto;
             white-space: pre-wrap;
             margin-top: 0;
             display: flex;
             flex-direction: column;
             gap: 0;
+        }
+
+        /* Pagina-scrollen alleen op mobiel */
+        @media (max-width: 768px) {
+            html, body {
+                overflow: auto; /* Scrollen toegestaan op mobiel */
+                height: auto;
+            }
+        }
+
+        @media (min-width: 769px) {
+            html, body {
+                overflow: hidden; /* Geen pagina-scrollen op desktop */
+                height: 100%;
+            }
         }
 
         .card {
@@ -77,6 +93,23 @@
         .pagination {
             justify-content: center;
             margin-top: 20px;
+        }
+
+        /* Aanpassingen voor de card-header */
+        .card-header .d-flex {
+            display: flex;
+            justify-content: space-between; /* Elementen naast elkaar op desktop */
+            align-items: center;
+            gap: 10px; /* Ruimte tussen de elementen */
+        }
+
+        /* Aanpassingen voor mobiele weergave */
+        @media (max-width: 768px) {
+            .card-header .d-flex {
+                flex-direction: column; /* Elementen onder elkaar op mobiel */
+                align-items: center; /* Uitlijnen in het midden */
+                gap: 5px; /* Kleinere ruimte tussen de elementen */
+            }
         }
     </style>
 </head>

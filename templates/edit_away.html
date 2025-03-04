@@ -3,35 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Away Toevoegen</title>
+    <title>Away Bewerken</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <style>
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
         @media (max-width: 768px) {
+            .form-control {
+                font-size: 14px; /* Kleinere tekst op mobiel */
+            }
+
+            .form-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px; /* Ruimte tussen de inputvelden */
+            }
+
+            .form-group {
+                flex: 1; /* Zorg ervoor dat de inputvelden flexibel zijn */
+            }
+
+            .form-group.col-8 {
+                flex: 2; /* Naam-input neemt meer ruimte in */
+            }
+
+            .form-group.col-4 {
+                flex: 1; /* Waarde-input neemt minder ruimte in */
+            }
+
             .btn-secondary {
                 top: 5px;
                 right: 10px;
                 font-size: 14px;
                 padding: 5px 10px;
             }
+        }
 
-            .form-control {
-                font-size: 14px;
-            }
+        .form-actions {
+            display: flex;
+            gap: 10px; /* Ruimte tussen de knoppen */
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Wijzig Away</h2>
-        <a href="{{ url_for('beheren_away') }}" class="btn btn-secondary position-absolute" style="top: 10px; right: 80px;">Ga terug</a>
         <br>
         <form method="POST" action="{{ url_for('edit_away', id=away['id']) }}">
-            <div class="form-group">
-                <label for="naam">Naam:</label>
-                <input type="text" class="form-control" id="naam" name="naam" value="{{ away['naam'] }}" required>
+            <div class="form-row">
+                <div class="form-group col-8"> <!-- Naam neemt 8 van de 12 kolommen in -->
+                    <label for="naam">Naam:</label>
+                    <input type="text" class="form-control" id="naam" name="naam" value="{{ away['naam'] }}" required>
+                </div>
+                <div class="form-group col-4"> <!-- Waarde neemt 4 van de 12 kolommen in -->
+                    <label for="waarde_away">Waarde:</label>
+                    <input type="number" class="form-control" id="waarde_away" name="waarde_away" value="{{ away['waarde'] }}" required>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary">Opslaan</button>
+
+            <div class="form-actions">
+                <a href="{{ url_for('beheren_away') }}" class="btn btn-secondary">Ga terug</a>
+                <button type="submit" class="btn btn-primary">Opslaan</button>
+            </div>
         </form>
 
         {% if error %}
