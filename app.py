@@ -1,4 +1,5 @@
 import locale
+import sys
 
 from flask import Flask, redirect, session, url_for, render_template, request
 from authlib.integrations.flask_client import OAuth
@@ -98,6 +99,48 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+def update_geselecteerde_gebruikers(away_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Haal het aantal beschikbare kaarten op voor deze away
+        cursor.execute("SELECT aantal_kaarten FROM away_details WHERE id = %s", (away_id,))
+        aantal_kaarten = cursor.fetchone()[0]
+
+        # Selecteer alle ingeschreven gebruikers voor deze away, gesorteerd op punten (hoogste eerst)
+        cursor.execute('''
+            SELECT ua.user_id, u.puntenaantal
+            FROM user_aways ua
+            JOIN users u ON ua.user_id = u.id
+            WHERE ua.away_id = %s
+            ORDER BY u.puntenaantal DESC
+        ''', (away_id,))
+
+        ingeschreven_gebruikers = cursor.fetchall()
+
+        # Bepaal de top X gebruikers op basis van het aantal kaarten
+        top_gebruikers = [row[0] for row in ingeschreven_gebruikers[:aantal_kaarten]]
+
+        # Update de `geselecteerd` kolom voor de top X gebruikers
+        cursor.execute('''
+            UPDATE user_aways
+            SET geselecteerd = TRUE
+            WHERE away_id = %s AND user_id IN %s
+        ''', (away_id, tuple(top_gebruikers) if top_gebruikers else (away_id, ())))  # Vermijd SQL-syntaxfout bij lege lijst
+
+        # Zet `geselecteerd` op FALSE voor de rest van de gebruikers
+        cursor.execute('''
+            UPDATE user_aways
+            SET geselecteerd = FALSE
+            WHERE away_id = %s AND user_id NOT IN %s
+        ''', (away_id, tuple(top_gebruikers) if top_gebruikers else (away_id, ())))  # Vermijd SQL-syntaxfout bij lege lijst
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Fout bij het bijwerken van geselecteerde gebruikers: {e}")
 @app.route('/')
 def home():
     if 'user' in session:
@@ -525,7 +568,7 @@ def bewerken_away_details(away_id):
         if request.method == 'POST':
             # Haal de form-gegevens op en werk de away inschrijving bij
             away_id_new = request.form['away_id']  # Nieuwe away_id uit de dropdown
-            aantal_kaarten = request.form['aantal_kaarten']
+            aantal_kaarten = int(request.form['aantal_kaarten'])  # Aantal kaarten
             beschrijving = request.form['beschrijving']
             away_datum = request.form['away_datum']
             inschrijving_einde = request.form['inschrijving_einde']
@@ -539,11 +582,17 @@ def bewerken_away_details(away_id):
             formatted_inschrijving_einde = inschrijving_einde.strftime('%Y-%m-%dT%H:%M:%S')
 
             # Voer de update uit, inclusief de nieuwe away_id
-            cursor.execute('''UPDATE away_details 
-                              SET away_id = %s, aantal_kaarten = %s, beschrijving = %s, away_datum = %s, inschrijving_einde = %s 
-                              WHERE id = %s''',
-                           (away_id_new, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde, away_id))
+            cursor.execute('''
+                UPDATE away_details 
+                SET away_id = %s, aantal_kaarten = %s, beschrijving = %s, away_datum = %s, inschrijving_einde = %s 
+                WHERE id = %s
+            ''', (away_id_new, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde, away_id))
+
             conn.commit()
+
+            # Roep de functie aan om de geselecteerde gebruikers bij te werken
+            update_geselecteerde_gebruikers(away_id)
+
             conn.close()
             return redirect(url_for('inschrijven_away'))
         else:
@@ -568,8 +617,6 @@ def bewerken_away_details(away_id):
             return render_template('bewerken_away_details.html', away_details=away_details_dict, available_aways=available_aways)
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
-
-
 @app.route('/verwijder_away_details/<int:away_id>', methods=['POST'])
 @login_required
 @admin_required
@@ -618,7 +665,11 @@ def verwerk_inschrijving():
                 ''', (user_id, away_details_id))
 
                 conn.commit()
-                conn.close()
+
+                # Roep de functie aan om de geselecteerde gebruikers bij te werken
+                update_geselecteerde_gebruikers(away_details_id)
+
+            conn.close()
             return redirect(url_for('inschrijven_away', page=current_page))  # Terug naar de huidige pagina
         else:
             cursor.execute('''SELECT user_id, away_id FROM user_aways WHERE user_id = %s AND away_id = %s''',
@@ -626,16 +677,77 @@ def verwerk_inschrijving():
 
             if cursor.fetchone():
                 cursor.execute('''
-                                DELETE FROM user_aways WHERE user_id = %s AND away_id = %s''',
-                           (user_id, away_details_id))
+                    DELETE FROM user_aways WHERE user_id = %s AND away_id = %s
+                ''', (user_id, away_details_id))
 
                 conn.commit()
-                conn.close()
 
+                # Roep de functie aan om de geselecteerde gebruikers bij te werken
+                update_geselecteerde_gebruikers(away_details_id)
+
+            conn.close()
             return redirect(url_for('inschrijven_away', page=current_page))  # Terug naar de huidige pagina
     except Exception as e:
         print(f"Fout: {e}")
         return f"Er is een fout opgetreden: {e}", 500
+@app.route('/away_lijsten')
+@login_required
+@admin_required
+def away_lijsten():
+    try:
+        # Haal de pagina parameter uit de URL (standaard naar 1 als deze niet bestaat)
+        page = request.args.get('page', 1, type=int)
+        per_page = 1  # Aantal aways per pagina (kan je aanpassen naar wens)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Roep de functie aan om de geselecteerde gebruikers bij te werken voor elke away
+        cursor.execute("SELECT id FROM away_details")
+        away_ids = [row[0] for row in cursor.fetchall()]
+        for away_id in away_ids:
+            update_geselecteerde_gebruikers(away_id)
+
+        # Haal het totaal aantal aways op
+        cursor.execute("SELECT COUNT(*) FROM away_details")
+        total_aways = cursor.fetchone()[0]
+
+        # Bereken het totale aantal pagina's
+        total_pages = (total_aways + per_page - 1) // per_page
+
+        # Bepaal de offset voor de huidige pagina
+        offset = (page - 1) * per_page
+
+        # Haal de lijsten op voor de aways van de huidige pagina
+        cursor.execute("""
+            SELECT 
+                a.naam, 
+                ad.away_datum, 
+                ad.aantal_kaarten, 
+                STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam) AS gebruikers,
+                STRING_AGG(
+                    CASE 
+                        WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')')
+                        ELSE NULL
+                    END, 
+                    E'\n' ORDER BY u.naam, u.voornaam
+                ) AS geselecteerde_gebruikers
+            FROM user_aways ua
+            JOIN away_details ad ON ua.away_id = ad.id
+            JOIN aways a ON ad.away_id = a.id
+            JOIN users u ON ua.user_id = u.id
+            GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten
+            ORDER BY ad.away_datum
+            LIMIT %s OFFSET %s
+        """, (per_page, offset))
+
+        resultaten = cursor.fetchall()
+        conn.close()
+
+        return render_template("lijst_away.html", resultaten=resultaten, format_datetime=format_datetime, current_page=page, total_pages=total_pages)
+    except Exception as e:
+        print("Fout bij het uitvoeren van de query:", e)
+        return "Er is een fout opgetreden bij het ophalen van de gegevens.", 500
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)

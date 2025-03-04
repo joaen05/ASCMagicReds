@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Away Lijsten{% endblock %}
+
+{% block content %}
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Away Lijsten</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .scrollbar {
+            flex-grow: 1;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .card {
+            margin-bottom: 20px;
+            height: auto;
+        }
+
+        .card-header {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Pas de breedte automatisch aan */
+            gap: 20px;
+        }
+
+        /* Als er maar één card is, neem dan de volledige breedte in */
+        .card-container:has(.card:only-child) {
+            grid-template-columns: 1fr;
+        }
+
+        .card-body .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px; /* Ruimte tussen de kolommen */
+        }
+
+        .card-body .col-md-6 {
+            flex: 1 1 calc(50% - 10px); /* Twee kolommen naast elkaar */
+        }
+
+        /* Aanpassingen voor mobiele weergave */
+        @media (max-width: 768px) {
+            .card-body .col-md-6 {
+                flex: 1 1 100%; /* Volledige breedte op mobiel */
+            }
+        }
+
+        .pagination {
+            justify-content: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-container">
+            <h2>Away Lijsten</h2>
+        </div>
+
+        {% if resultaten %}
+            <div class="card-container">
+                {% for rij in resultaten %}
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex">
+                                <span>{{ rij[0] }}</span> <!-- Away naam -->
+                                <span>{{ format_datetime(rij[1], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span> <!-- Datum -->
+                                <span>{{ rij[2] }} kaarten</span> <!-- Aantal kaarten -->
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="scrollbar">
+                                        <p><strong>Ingeschreven gebruikers:</strong></p>
+                                        <pre>{{ rij[3] }}</pre> <!-- Lijst van alle gebruikers -->
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="scrollbar">
+                                        <p><strong>Geselecteerde gebruikers:</strong></p>
+                                        <pre>{{ rij[4] if rij[4] else 'Geen geselecteerde gebruikers' }}</pre> <!-- Lijst van geselecteerde gebruikers -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Paginering -->
+            {% if total_pages > 1 %}
+                <div class="pagination">
+                    {% if current_page > 1 %}
+                        <a href="{{ url_for('away_lijsten', page=current_page - 1) }}"><b><</b></a>
+                    {% endif %}
+                    <span class="mx-3">Pagina {{ current_page }} van {{ total_pages }}</span>
+                    {% if current_page < total_pages %}
+                        <a href="{{ url_for('away_lijsten', page=current_page + 1) }}"><b>></b></a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                Momenteel geen aways beschikbaar.
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+
+{% endblock %}
