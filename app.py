@@ -10,6 +10,9 @@ import os
 from functools import wraps
 from babel.dates import format_datetime
 import datetime
+import threading
+import time
+import requests
 
 
 # Laad omgevingsvariabelen uit .env-bestand
@@ -37,6 +40,16 @@ auth0 = oauth.register(
         'scope': 'openid profile email',
     },
 )
+
+def keep_alive():
+    while True:
+        try:
+            # Vervang 'your-app-url' met de URL van je applicatie
+            requests.get('https://ascmagicreds.onrender.com/ping')
+        except:
+            pass
+        time.sleep(300)  # Wacht 5 minuten tussen elke ping
+
 
 # Functie om verbinding te maken met de PostgreSQL-database
 def get_db_connection():
@@ -144,6 +157,12 @@ def update_geselecteerde_gebruikers(away_id):
         conn.close()
     except Exception as e:
         print(f"Fout bij het bijwerken van geselecteerde gebruikers: {e}")
+
+
+
+@app.route('/ping')
+def ping():
+    return 'OK', 200
 @app.route('/')
 def home():
     if 'user' in session:
@@ -777,4 +796,7 @@ def away_lijsten():
 
 
 if __name__ == "__main__":
+    t = threading.Thread(target=keep_alive)
+    t.daemon = True
+    t.start()
     app.run(host='0.0.0.0', port=10000)
