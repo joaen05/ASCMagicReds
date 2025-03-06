@@ -32,14 +32,18 @@
             .form-row {
                 margin-bottom: 10px;
             }
+            .form-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Lid Bewerken</h2>
-        <a href="{{ url_for('beheer_leden') }}" class="btn btn-secondary position-absolute" style="top: 10px; right: 80px;">Annuleren</a>
-        <br>
         <form method="POST" action="{{ url_for('edit_member', id=member['id']) }}">
             <div class="form-row">
                 <div class="form-group col-md-6">
@@ -102,7 +106,10 @@
                     <input type="number" class="form-control" id="puntenaantal" name="puntenaantal" value="{{ member['puntenaantal'] }}" required>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">Opslaan</button>
+            <div class="form-actions">
+                <a href="{{ url_for('beheer_leden') }}" class="btn btn-secondary">Ga terug</a>
+                <button type="submit" class="btn btn-primary">Opslaan</button>
+            </div>
         </form>
 
         {% if error %}

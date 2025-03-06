@@ -33,14 +33,18 @@
             .form-row {
                 margin-bottom: 10px;
             }
+             .form-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Bewerken Away Inschrijving</h2>
-        <a href="{{ url_for('inschrijven_away') }}" class="btn btn-secondary position-absolute" style="top: 10px; right: 80px;">Ga terug</a>
-        <br>
         <form method="POST" id="inschrijvingForm">
             <div class="form-row">
                 <div class="form-group col-md-6">
@@ -77,7 +81,8 @@
                 </div>
             </div>
 
-            <div class="form-row">
+            <div class="form-actions">
+                <a href="{{ url_for('inschrijven_away') }}" class="btn btn-secondary">Ga terug</a>
                 <button type="submit" class="btn btn-primary">Inschrijving Bijwerken</button>
             </div>
         </form>

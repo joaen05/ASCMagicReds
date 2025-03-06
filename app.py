@@ -768,14 +768,14 @@ def away_lijsten():
                 ad.aantal_kaarten, 
                 CASE 
                     WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
-                    ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n')
+                    ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam)
                 END AS gebruikers,
                 COALESCE(STRING_AGG(
                     CASE 
                         WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')')
                         ELSE NULL
                     END, 
-                    E'\n'
+                    E'\n' ORDER BY u.naam, u.voornaam
                 ), 'Nog geen geselecteerde gebruikers') AS geselecteerde_gebruikers
             FROM away_details ad
             JOIN aways a ON ad.away_id = a.id
