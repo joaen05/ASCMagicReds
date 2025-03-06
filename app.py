@@ -795,6 +795,23 @@ def away_lijsten():
         return "Er is een fout opgetreden bij het ophalen van de gegevens.", 500
 
 
+@app.route('/bewerk_lijst')
+@login_required
+@admin_required
+def bewerk_lijst():
+    pass
+
+
+@app.route('/verwijder_lijst')
+@login_required
+@admin_required
+def verwijder_lijst():
+    pass
+
+
+
+
+
 if __name__ == "__main__":
     t = threading.Thread(target=keep_alive)
     t.daemon = True

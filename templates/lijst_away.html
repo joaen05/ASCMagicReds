@@ -11,107 +11,136 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        .scrollbar {
-            flex-grow: 1;
-            max-height: 180px;
-            min-height: 180px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            margin-top: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-        }
+    .scrollbar {
+        flex-grow: 1;
+        max-height: 180px;
+        min-height: 180px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        margin-top: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
 
-        /* Pagina-scrollen alleen op mobiel */
-        @media (max-width: 768px) {
-            html, body {
-                overflow: auto; /* Scrollen toegestaan op mobiel */
-                height: auto;
-            }
-        }
-
-        @media (min-width: 769px) {
-            html, body {
-                overflow: hidden; /* Geen pagina-scrollen op desktop */
-                height: 100%;
-            }
-        }
-
-        .card {
-            margin-bottom: 20px;
+    /* Pagina-scrollen alleen op mobiel */
+    @media (max-width: 768px) {
+        html, body {
+            overflow: auto; /* Scrollen toegestaan op mobiel */
             height: auto;
         }
+    }
 
-        .card-header {
-            font-size: 18px;
-            font-weight: bold;
+    @media (min-width: 769px) {
+        html, body {
+            overflow: hidden; /* Geen pagina-scrollen op desktop */
+            height: 100%;
         }
+    }
 
-        .card-body {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            overflow: hidden;
-        }
+    .card {
+        margin-bottom: 20px;
+        height: auto;
+    }
 
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
+    .card-header {
+        font-size: 18px;
+        font-weight: bold;
+    }
 
-        .card-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Pas de breedte automatisch aan */
-            gap: 20px;
-        }
+    .card-body {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        overflow: hidden;
+    }
 
-        /* Als er maar één card is, neem dan de volledige breedte in */
-        .card-container:has(.card:only-child) {
-            grid-template-columns: 1fr;
-        }
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        width: 100%;
+    }
 
-        .card-body .row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px; /* Ruimte tussen de kolommen */
-        }
+    .card-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
 
+    /* Als er maar één card is, neem dan de volledige breedte in */
+    .card-container:has(.card:only-child) {
+        grid-template-columns: 1fr;
+    }
+
+    .card-body .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .card-body .col-md-6 {
+        flex: 1 1 calc(50% - 10px);
+    }
+
+    /* Aanpassingen voor mobiele weergave */
+    @media (max-width: 768px) {
         .card-body .col-md-6 {
-            flex: 1 1 calc(50% - 10px); /* Twee kolommen naast elkaar */
+            flex: 1 1 100%;
+        }
+    }
+
+    .pagination {
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    /* Header zonder vaste kolommen, items nemen de ruimte in die ze nodig hebben */
+    .card-header .header-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    /* Knoppen naast elkaar, zorg ervoor dat ze 40x40 blijven */
+    .knoppen {
+        display: inline-flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: flex-start; /* Zorgt ervoor dat knoppen netjes naast elkaar blijven */
+    }
+
+    .btn-group form {
+        display: inline-flex;
+    }
+
+    /* Alle knoppen een vaste breedte en hoogte van 40px */
+    .btn-group .btn {
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center; /* Centreer de inhoud verticaal */
+        justify-content: center; /* Centreer de inhoud horizontaal */
+    }
+
+    /* Aanpassingen voor mobiele weergave */
+    @media (max-width: 768px) {
+        .card-header .header-grid {
+            flex-direction: column; /* Items onder elkaar op mobiel */
+            text-align: center; /* Centreer de tekst */
         }
 
-        /* Aanpassingen voor mobiele weergave */
-        @media (max-width: 768px) {
-            .card-body .col-md-6 {
-                flex: 1 1 100%; /* Volledige breedte op mobiel */
-            }
+        .btn-group.knoppen {
+            justify-content: center; /* Centreer de knoppen */
+            margin-top: 10px; /* Ruimte boven de knoppen */
         }
+    }
+</style>
 
-        .pagination {
-            justify-content: center;
-            margin-top: 20px;
-        }
 
-        /* Aanpassingen voor de card-header */
-        .card-header .d-flex {
-            display: flex;
-            justify-content: space-between; /* Elementen naast elkaar op desktop */
-            align-items: center;
-            gap: 10px; /* Ruimte tussen de elementen */
-        }
-
-        /* Aanpassingen voor mobiele weergave */
-        @media (max-width: 768px) {
-            .card-header .d-flex {
-                flex-direction: column; /* Elementen onder elkaar op mobiel */
-                align-items: center; /* Uitlijnen in het midden */
-                gap: 5px; /* Kleinere ruimte tussen de elementen */
-            }
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -124,10 +153,30 @@
                 {% for rij in resultaten %}
                     <div class="card">
                         <div class="card-header">
-                            <div class="d-flex">
-                                <span>{{ rij[0] }}</span> <!-- Away naam -->
-                                <span>{{ format_datetime(rij[1], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span> <!-- Datum -->
-                                <span>{{ rij[2] }} kaarten</span> <!-- Aantal kaarten -->
+                            <div class="header-grid">
+                                <span>{{ rij[0] }}</span> <!-- Away naam (30%) -->
+                                <span>{{ format_datetime(rij[1], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span> <!-- Datum (30%) -->
+                                <span>{{ rij[2] }} kaarten</span> <!-- Aantal kaarten (20%) -->
+                                {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('bewerk_lijst')}}" class="btn btn-sm btn-warning">
+                                            <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
+                                        </a>
+                                        <div class="btn-group knoppen">
+                                            <form action="{{ url_for('verwijder_lijst')}}" method="POST" style="display:inline;">
+                                                <button type="button" class="btn btn-sm btn-danger action-button">
+                                                    <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 25px; height: 25px;">
+                                                </button>
+                                            </form>
+                                            <a href="{{ url_for('bewerk_lijst')}}" class="btn btn-sm btn-info">
+                                                <img src="{{ url_for('static', filename='download.png') }}" alt="Download" style="width: 25px; height: 25px;">
+                                            </a>
+                                            <a href="{{ url_for('bewerk_lijst')}}" class="btn btn-sm btn-success">
+                                                <img src="{{ url_for('static', filename='vinkje.png') }}" alt="Vinkje" style="width: 25px; height: 25px;">
+                                            </a>
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="card-body">
