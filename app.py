@@ -123,19 +123,22 @@ def update_geselecteerde_gebruikers(away_id):
         # Bepaal de top X gebruikers op basis van het aantal kaarten
         top_gebruikers = [row[0] for row in ingeschreven_gebruikers[:aantal_kaarten]]
 
+        # Als er geen gebruikers zijn, gebruik dan een lege tuple om SQL-syntaxfouten te voorkomen
+        top_gebruikers_tuple = tuple(top_gebruikers) if top_gebruikers else (None,)
+
         # Update de `geselecteerd` kolom voor de top X gebruikers
         cursor.execute('''
             UPDATE user_aways
             SET geselecteerd = TRUE
             WHERE away_id = %s AND user_id IN %s
-        ''', (away_id, tuple(top_gebruikers) if top_gebruikers else (away_id, ())))  # Vermijd SQL-syntaxfout bij lege lijst
+        ''', (away_id, top_gebruikers_tuple))
 
         # Zet `geselecteerd` op FALSE voor de rest van de gebruikers
         cursor.execute('''
             UPDATE user_aways
             SET geselecteerd = FALSE
             WHERE away_id = %s AND user_id NOT IN %s
-        ''', (away_id, tuple(top_gebruikers) if top_gebruikers else (away_id, ())))  # Vermijd SQL-syntaxfout bij lege lijst
+        ''', (away_id, top_gebruikers_tuple))
 
         conn.commit()
         conn.close()
@@ -744,18 +747,21 @@ def away_lijsten():
                 a.naam, 
                 ad.away_datum, 
                 ad.aantal_kaarten, 
-                STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam) AS gebruikers,
-                STRING_AGG(
+                CASE 
+                    WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
+                    ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n')
+                END AS gebruikers,
+                COALESCE(STRING_AGG(
                     CASE 
                         WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')')
                         ELSE NULL
                     END, 
-                    E'\n' ORDER BY u.naam, u.voornaam
-                ) AS geselecteerde_gebruikers
-            FROM user_aways ua
-            JOIN away_details ad ON ua.away_id = ad.id
+                    E'\n'
+                ), 'Nog geen geselecteerde gebruikers') AS geselecteerde_gebruikers
+            FROM away_details ad
             JOIN aways a ON ad.away_id = a.id
-            JOIN users u ON ua.user_id = u.id
+            LEFT JOIN user_aways ua ON ad.id = ua.away_id
+            LEFT JOIN users u ON ua.user_id = u.id
             GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten
             ORDER BY ad.away_datum
             LIMIT %s OFFSET %s
@@ -768,6 +774,7 @@ def away_lijsten():
     except Exception as e:
         print("Fout bij het uitvoeren van de query:", e)
         return "Er is een fout opgetreden bij het ophalen van de gegevens.", 500
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
