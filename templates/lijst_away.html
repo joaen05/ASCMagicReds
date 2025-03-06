@@ -124,6 +124,7 @@
         display: inline-flex;
         align-items: center; /* Centreer de inhoud verticaal */
         justify-content: center; /* Centreer de inhoud horizontaal */
+        margin: 0; /* Zorg ervoor dat er geen extra marges zijn */
     }
 
     /* Aanpassingen voor mobiele weergave */
@@ -137,8 +138,15 @@
             justify-content: center; /* Centreer de knoppen */
             margin-top: 10px; /* Ruimte boven de knoppen */
         }
+
+        /* Zorg ervoor dat alle knoppen precies op dezelfde hoogte zitten */
+        .btn-group .btn {
+            margin-top: 0; /* Zorg ervoor dat er geen extra marges zijn */
+            align-self: center; /* Zorg ervoor dat alle knoppen verticaal gecentreerd zijn */
+        }
     }
 </style>
+
 
 
 </head>
@@ -159,10 +167,11 @@
                                 <span>{{ rij[2] }} kaarten</span> <!-- Aantal kaarten (20%) -->
                                 {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
                                     <div class="btn-group">
-                                        <a href="{{ url_for('bewerk_lijst')}}" class="btn btn-sm btn-warning">
-                                            <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
-                                        </a>
                                         <div class="btn-group knoppen">
+                                            <a href="{{ url_for('bewerk_lijst')}}" class="btn btn-sm btn-warning">
+                                                <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
+                                            </a>
+
                                             <form action="{{ url_for('verwijder_lijst')}}" method="POST" style="display:inline;">
                                                 <button type="button" class="btn btn-sm btn-danger action-button">
                                                     <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 25px; height: 25px;">
