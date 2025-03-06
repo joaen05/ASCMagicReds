@@ -147,8 +147,6 @@
     }
 </style>
 
-
-
 </head>
 <body>
     <div class="container">
@@ -162,27 +160,53 @@
                     <div class="card">
                         <div class="card-header">
                             <div class="header-grid">
-                                <span>{{ rij[0] }}</span> <!-- Away naam (30%) -->
-                                <span>{{ format_datetime(rij[1], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span> <!-- Datum (30%) -->
-                                <span>{{ rij[2] }} kaarten</span> <!-- Aantal kaarten (20%) -->
+                                <span>{{ rij[0] }}</span> <!-- Away naam -->
+                                <span>{{ format_datetime(rij[1], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span> <!-- Datum -->
+                                <span>{{ rij[2] }} kaarten</span> <!-- Aantal kaarten -->
+
                                 {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
                                     <div class="btn-group">
                                         <div class="btn-group knoppen">
-                                            <a href="{{ url_for('bewerk_lijst', away_id=rij[5]) }}" class="btn btn-sm btn-warning">
-                                                <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
-                                            </a>
+                                            <!-- Bewerkknop: Alleen beschikbaar na inschrijving einde -->
+                                            {% if rij[6] < now %}
+                                                <a href="{{ url_for('bewerk_lijst', away_id=rij[5]) }}" class="btn btn-sm btn-warning">
+                                                    <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
+                                                </a>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-warning" disabled>
+                                                    <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
+                                                </button>
+                                            {% endif %}
+
+                                            <!-- Verwijderknop: Altijd beschikbaar voor admin -->
                                             <form action="{{ url_for('verwijder_lijst') }}" method="POST" id="delete-form-{{ rij[5] }}" style="display:inline;">
                                                 <input type="hidden" name="away_id" value="{{ rij[5] }}">
                                                 <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete({{ rij[5] }})">
                                                     <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 25px; height: 25px;">
                                                 </button>
                                             </form>
-                                            <a href="{{ url_for('download_lijst')}}" class="btn btn-sm btn-info">
-                                                <img src="{{ url_for('static', filename='download.png') }}" alt="Download" style="width: 25px; height: 25px;">
-                                            </a>
-                                            <a href="{{ url_for('bevestig_lijst')}}" class="btn btn-sm btn-success">
-                                                <img src="{{ url_for('static', filename='vinkje.png') }}" alt="Vinkje" style="width: 25px; height: 25px;">
-                                            </a>
+
+                                            <!-- Downloadknop: Alleen beschikbaar na inschrijving einde -->
+                                            {% if rij[6] < now %}
+                                                <a href="{{ url_for('download_lijst')}}" class="btn btn-sm btn-info">
+                                                    <img src="{{ url_for('static', filename='download.png') }}" alt="Download" style="width: 25px; height: 25px;">
+                                                </a>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-info" disabled>
+                                                    <img src="{{ url_for('static', filename='download.png') }}" alt="Download" style="width: 25px; height: 25px;">
+                                                </button>
+                                            {% endif %}
+
+                                            <!-- Bevestigknop: Alleen beschikbaar na inschrijving einde -->
+                                            {% if rij[1] < now %}
+                                                <a href="{{ url_for('bevestig_lijst')}}" class="btn btn-sm btn-success">
+                                                    <img src="{{ url_for('static', filename='vinkje.png') }}" alt="Vinkje" style="width: 25px; height: 25px;">
+                                                </a>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-success" disabled>
+                                                    <img src="{{ url_for('static', filename='vinkje.png') }}" alt="Vinkje" style="width: 25px; height: 25px;">
+                                                </button>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 {% endif %}
@@ -226,17 +250,14 @@
             </div>
         {% endif %}
     </div>
-</body>
-<script>
 
-    function confirmDelete(awayId) {
-        var confirmation = confirm("Weet je zeker dat je deze lijst wilt verwijderen?");
-        if (confirmation) {
-            document.getElementById('delete-form-' + awayId).submit();
+    <script>
+        function confirmDelete(awayId) {
+            if (confirm("Weet je zeker dat je deze lijst wilt verwijderen?")) {
+                document.getElementById('delete-form-' + awayId).submit();
+            }
         }
-    }
-</script>
-
+    </script>
+</body>
 </html>
-
 {% endblock %}

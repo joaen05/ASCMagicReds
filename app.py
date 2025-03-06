@@ -802,34 +802,40 @@ def away_lijsten():
 
         # Haal de lijsten op voor de aways van de huidige pagina
         cursor.execute("""
-            SELECT 
-                a.naam, 
-                ad.away_datum, 
-                ad.aantal_kaarten,
-                CASE 
-                    WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
-                    ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam)
-                END AS gebruikers,
-                COALESCE(STRING_AGG(
-                    CASE 
-                        WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')')
-                        ELSE NULL
-                    END, 
-                    E'\n' ORDER BY u.naam, u.voornaam
-                ), 'Nog geen geselecteerde gebruikers') AS geselecteerde_gebruikers,ua.away_id
-            FROM away_details ad
-            JOIN aways a ON ad.away_id = a.id
-            LEFT JOIN user_aways ua ON ad.id = ua.away_id
-            LEFT JOIN users u ON ua.user_id = u.id
-            GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten,ua.away_id
-            ORDER BY ad.away_datum
-            LIMIT %s OFFSET %s
+                        SELECT 
+    a.naam, 
+    ad.away_datum, 
+    ad.aantal_kaarten,
+    CASE 
+        WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
+        ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam)
+    END AS gebruikers,
+    COALESCE(
+        STRING_AGG(
+            CASE 
+                WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')')
+                ELSE NULL
+            END, 
+            E'\n' ORDER BY u.naam, u.voornaam
+        ), 
+        'Nog geen geselecteerde gebruikers'
+    ) AS geselecteerde_gebruikers,
+    ua.away_id,
+    ad.inschrijving_einde
+FROM away_details ad
+JOIN aways a ON ad.away_id = a.id
+LEFT JOIN user_aways ua ON ad.id = ua.away_id  -- Dit moet de juiste join zijn
+LEFT JOIN users u ON ua.user_id = u.id
+GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten, ua.away_id, ad.inschrijving_einde
+ORDER BY ad.away_datum
+LIMIT %s OFFSET %s
+
         """, (per_page, offset))
 
         resultaten = cursor.fetchall()
         conn.close()
-
-        return render_template("lijst_away.html", resultaten=resultaten, format_datetime=format_datetime, current_page=page, total_pages=total_pages)
+        now = datetime.now()
+        return render_template("lijst_away.html", resultaten=resultaten, format_datetime=format_datetime, current_page=page, total_pages=total_pages,now = now)
     except Exception as e:
         print("Fout bij het uitvoeren van de query:", e)
         return "Er is een fout opgetreden bij het ophalen van de gegevens.", 500
