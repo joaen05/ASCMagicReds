@@ -168,19 +168,19 @@
                                 {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
                                     <div class="btn-group">
                                         <div class="btn-group knoppen">
-                                            <a href="{{ url_for('bewerk_lijst')}}" class="btn btn-sm btn-warning">
+                                            <a href="{{ url_for('bewerk_lijst', away_id=rij[5]) }}" class="btn btn-sm btn-warning">
                                                 <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
                                             </a>
-
-                                            <form action="{{ url_for('verwijder_lijst')}}" method="POST" style="display:inline;">
-                                                <button type="button" class="btn btn-sm btn-danger action-button">
+                                            <form action="{{ url_for('verwijder_lijst') }}" method="POST" id="delete-form-{{ rij[5] }}" style="display:inline;">
+                                                <input type="hidden" name="away_id" value="{{ rij[5] }}">
+                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDelete({{ rij[5] }})">
                                                     <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 25px; height: 25px;">
                                                 </button>
                                             </form>
-                                            <a href="{{ url_for('bewerk_lijst')}}" class="btn btn-sm btn-info">
+                                            <a href="{{ url_for('download_lijst')}}" class="btn btn-sm btn-info">
                                                 <img src="{{ url_for('static', filename='download.png') }}" alt="Download" style="width: 25px; height: 25px;">
                                             </a>
-                                            <a href="{{ url_for('bewerk_lijst')}}" class="btn btn-sm btn-success">
+                                            <a href="{{ url_for('bevestig_lijst')}}" class="btn btn-sm btn-success">
                                                 <img src="{{ url_for('static', filename='vinkje.png') }}" alt="Vinkje" style="width: 25px; height: 25px;">
                                             </a>
                                         </div>
@@ -227,6 +227,16 @@
         {% endif %}
     </div>
 </body>
+<script>
+
+    function confirmDelete(awayId) {
+        var confirmation = confirm("Weet je zeker dat je deze lijst wilt verwijderen?");
+        if (confirmation) {
+            document.getElementById('delete-form-' + awayId).submit();
+        }
+    }
+</script>
+
 </html>
 
 {% endblock %}

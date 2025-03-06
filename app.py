@@ -159,6 +159,46 @@ def update_geselecteerde_gebruikers(away_id):
         print(f"Fout bij het bijwerken van geselecteerde gebruikers: {e}")
 
 
+def vervang_geselecteerde_gebruiker(away_id, verwijderde_user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Haal de gebruiker op die de meeste punten heeft en nog niet geselecteerd is
+        cursor.execute('''
+            SELECT ua.user_id
+            FROM user_aways ua
+            JOIN users u ON ua.user_id = u.id
+            WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
+            ORDER BY u.puntenaantal DESC
+            LIMIT 1
+        ''', (away_id,))
+
+        nieuwe_gebruiker = cursor.fetchone()
+
+        if nieuwe_gebruiker:
+            nieuwe_user_id = nieuwe_gebruiker[0]
+
+            # Update de database: verwijder oude gebruiker en voeg de nieuwe toe
+            cursor.execute('''
+                UPDATE user_aways
+                SET geselecteerd = FALSE
+                WHERE away_id = %s AND user_id = %s
+            ''', (away_id, verwijderde_user_id))
+
+            cursor.execute('''
+                UPDATE user_aways
+                SET geselecteerd = TRUE
+                WHERE away_id = %s AND user_id = %s
+            ''', (away_id, nieuwe_user_id))
+
+            conn.commit()
+
+        conn.close()
+
+    except Exception as e:
+        print(f"Fout bij het vervangen van een gebruiker: {e}")
+
 
 @app.route('/ping')
 def ping():
@@ -765,7 +805,7 @@ def away_lijsten():
             SELECT 
                 a.naam, 
                 ad.away_datum, 
-                ad.aantal_kaarten, 
+                ad.aantal_kaarten,
                 CASE 
                     WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
                     ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam)
@@ -776,12 +816,12 @@ def away_lijsten():
                         ELSE NULL
                     END, 
                     E'\n' ORDER BY u.naam, u.voornaam
-                ), 'Nog geen geselecteerde gebruikers') AS geselecteerde_gebruikers
+                ), 'Nog geen geselecteerde gebruikers') AS geselecteerde_gebruikers,ua.away_id
             FROM away_details ad
             JOIN aways a ON ad.away_id = a.id
             LEFT JOIN user_aways ua ON ad.id = ua.away_id
             LEFT JOIN users u ON ua.user_id = u.id
-            GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten
+            GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten,ua.away_id
             ORDER BY ad.away_datum
             LIMIT %s OFFSET %s
         """, (per_page, offset))
@@ -795,22 +835,164 @@ def away_lijsten():
         return "Er is een fout opgetreden bij het ophalen van de gegevens.", 500
 
 
-@app.route('/bewerk_lijst')
+@app.route('/bewerk_lijst/<int:away_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
-def bewerk_lijst():
-    pass
+def bewerk_lijst(away_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Haal de geselecteerde leden op voor deze away
+        cursor.execute('''
+            SELECT u.id, u.voornaam, u.naam, u.one_account_id
+            FROM users u
+            JOIN user_aways ua ON u.id = ua.user_id
+            WHERE ua.away_id = %s AND ua.geselecteerd = TRUE
+            ORDER BY u.naam,u.voornaam
+        ''', (away_id,))
+        geselecteerde_leden = cursor.fetchall()
+
+        # Haal alle leden op die niet geselecteerd zijn voor deze away
+        cursor.execute('''
+            SELECT u.id, u.voornaam, u.naam, u.one_account_id
+            FROM users u
+            LEFT JOIN user_aways ua ON u.id = ua.user_id AND ua.away_id = %s
+            WHERE ua.geselecteerd IS NULL OR ua.geselecteerd = FALSE
+        ''', (away_id,))
+        niet_geselecteerde_leden = cursor.fetchall()
+
+        # Haal het aantal kaarten op voor deze away
+        cursor.execute("SELECT aantal_kaarten FROM away_details WHERE id = %s", (away_id,))
+        aantal_kaarten = cursor.fetchone()[0]
+
+        # Controleer of er leden in de wacht staan
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM users u
+            JOIN user_aways ua ON u.id = ua.user_id
+            WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
+        """, (away_id,))
+        leden_in_wacht = cursor.fetchone()[0] > 0  # Boolean: True als er leden in de wacht staan, anders False
+
+        conn.close()
+
+        return render_template('bewerk_lijst.html',
+                              geselecteerde_leden=geselecteerde_leden,
+                              niet_geselecteerde_leden=niet_geselecteerde_leden,
+                              aantal_kaarten=aantal_kaarten,
+                              away_id=away_id,
+                              leden_in_wacht=leden_in_wacht)  # Geef leden_in_wacht door aan de template
+    except Exception as e:
+        print(f"Fout bij het ophalen van de lijst: {e}")
+        return redirect(url_for('away_lijsten'))
 
 
-@app.route('/verwijder_lijst')
+@app.route('/verwijder_lijst', methods=['POST'])
 @login_required
 @admin_required
 def verwijder_lijst():
+    # Verkrijg de away_id van het formulier
+    away_id = request.form.get('away_id')
+
+    if away_id:
+        # Maak verbinding met de database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Verwijder eerst alle rijen uit de tabel user_aways waar away_id overeenkomt
+            cursor.execute("DELETE FROM user_aways WHERE away_id = %s", (away_id,))
+
+            # Verwijder de record uit de away_details tabel
+            cursor.execute("DELETE FROM away_details WHERE id = %s", (away_id,))
+
+            # Commit de veranderingen naar de database
+            conn.commit()
+
+        except Exception as e:
+            # Als er iets misgaat, rollback de transactie
+            conn.rollback()
+        finally:
+            # Sluit de cursor en de verbinding
+            cursor.close()
+            conn.close()
+
+    return redirect(url_for('away_lijsten'))
+
+
+@app.route('/download_lijst')
+@login_required
+@admin_required
+def download_lijst():
     pass
 
 
+@app.route('/bevestig_lijst')
+@login_required
+@admin_required
+def bevestig_lijst():
+    pass
 
 
+@app.route('/vervang_gebruiker/<int:away_id>/<int:verwijderde_user_id>')
+@login_required
+@admin_required
+def vervang_gebruiker(away_id, verwijderde_user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Stap 1: Controleer of er nog leden in de wacht staan
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM users u
+            JOIN user_aways ua ON u.id = ua.user_id
+            WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
+        """, (away_id,))
+
+        leden_in_wacht = cursor.fetchone()[0] > 0  # Boolean: True als er leden in de wacht staan, anders False
+
+        if not leden_in_wacht:
+            # Als er geen leden in de wacht staan, stop de bewerking en geef een foutmelding terug
+            return "Er zijn geen leden meer in de wachtlijst", 400
+
+        # Stap 2: Verwijder de gebruiker helemaal uit de selectie
+        cursor.execute("""
+            DELETE FROM user_aways
+            WHERE away_id = %s AND user_id = %s
+        """, (away_id, verwijderde_user_id))
+
+        # Stap 3: Zoek de gebruiker met de hoogste punten die nog niet geselecteerd is
+        cursor.execute("""
+            SELECT u.id 
+            FROM users u
+            JOIN user_aways ua ON u.id = ua.user_id
+            WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
+            ORDER BY u.puntenaantal DESC
+            LIMIT 1
+        """, (away_id,))
+
+        nieuwe_gebruiker = cursor.fetchone()
+
+        if nieuwe_gebruiker:
+            nieuwe_user_id = nieuwe_gebruiker[0]
+
+            # Stap 4: Zet deze nieuwe gebruiker in de selectie
+            cursor.execute("""
+                UPDATE user_aways 
+                SET geselecteerd = TRUE 
+                WHERE away_id = %s AND user_id = %s
+            """, (away_id, nieuwe_user_id))
+
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for('bewerk_lijst', away_id=away_id))
+
+    except Exception as e:
+        print(f"Fout bij vervangen gebruiker: {e}")
+        return "Er is een fout opgetreden", 500
 
 if __name__ == "__main__":
     t = threading.Thread(target=keep_alive)
