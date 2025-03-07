@@ -1,6 +1,3 @@
-import locale
-import sys
-
 from flask import Flask, redirect, session, url_for, render_template, request
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
@@ -8,11 +5,13 @@ import psycopg2
 from urllib.parse import urlparse
 import os
 from functools import wraps
-from babel.dates import format_datetime
+from babel.dates import format_datetime, pytz
 import datetime
 import threading
 import time
 import requests
+import pytz
+
 
 
 # Laad omgevingsvariabelen uit .env-bestand
@@ -772,6 +771,12 @@ def verwerk_inschrijving():
     except Exception as e:
         print(f"Fout: {e}")
         return f"Er is een fout opgetreden: {e}", 500
+
+
+
+# Tijdzone instellen (bijvoorbeeld 'Europe/Brussels')
+TIMEZONE = pytz.timezone('Europe/Brussels')
+
 @app.route('/away_lijsten')
 @login_required
 @admin_required
@@ -802,40 +807,75 @@ def away_lijsten():
 
         # Haal de lijsten op voor de aways van de huidige pagina
         cursor.execute("""
-                        SELECT 
-    a.naam, 
-    ad.away_datum, 
-    ad.aantal_kaarten,
-    CASE 
-        WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
-        ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam)
-    END AS gebruikers,
-    COALESCE(
-        STRING_AGG(
-            CASE 
-                WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')')
-                ELSE NULL
-            END, 
-            E'\n' ORDER BY u.naam, u.voornaam
-        ), 
-        'Nog geen geselecteerde gebruikers'
-    ) AS geselecteerde_gebruikers,
-    ad.id,
-    ad.inschrijving_einde
-FROM away_details ad
-JOIN aways a ON ad.away_id = a.id
-LEFT JOIN user_aways ua ON ad.id = ua.away_id  -- Dit moet de juiste join zijn
-LEFT JOIN users u ON ua.user_id = u.id
-GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten, ad.id, ad.inschrijving_einde
-ORDER BY ad.away_datum
-LIMIT %s OFFSET %s
-
+            SELECT 
+                a.naam, 
+                ad.away_datum, 
+                ad.aantal_kaarten,
+                CASE 
+                    WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
+                    ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam)
+                END AS gebruikers,
+                COALESCE(
+                    STRING_AGG(
+                        CASE 
+                            WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')')
+                            ELSE NULL
+                        END, 
+                        E'\n' ORDER BY u.naam, u.voornaam
+                    ), 
+                    'Nog geen geselecteerde gebruikers'
+                ) AS geselecteerde_gebruikers,
+                ad.id,
+                ad.inschrijving_einde
+            FROM away_details ad
+            JOIN aways a ON ad.away_id = a.id
+            LEFT JOIN user_aways ua ON ad.id = ua.away_id
+            LEFT JOIN users u ON ua.user_id = u.id
+            GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten, ad.id, ad.inschrijving_einde
+            ORDER BY ad.away_datum
+            LIMIT %s OFFSET %s
         """, (per_page, offset))
 
         resultaten = cursor.fetchall()
         conn.close()
-        now = datetime.now()
-        return render_template("lijst_away.html", resultaten=resultaten, format_datetime=format_datetime, current_page=page, total_pages=total_pages,now = now)
+
+        # Zorg ervoor dat alle datetimes offset-aware zijn
+        now = datetime.now(TIMEZONE)  # Huidige tijd met tijdzone
+
+        # Converteer de datetimes in de resultaten naar offset-aware
+        formatted_resultaten = []
+        for rij in resultaten:
+            naam, away_datum, aantal_kaarten, gebruikers, geselecteerde_gebruikers, away_id, inschrijving_einde = rij
+
+            # Converteer away_datum en inschrijving_einde naar offset-aware datetimes
+            if isinstance(away_datum, str):
+                away_datum = TIMEZONE.localize(datetime.strptime(away_datum, '%Y-%m-%d %H:%M:%S'))
+            elif isinstance(away_datum, datetime) and away_datum.tzinfo is None:
+                away_datum = TIMEZONE.localize(away_datum)
+
+            if isinstance(inschrijving_einde, str):
+                inschrijving_einde = TIMEZONE.localize(datetime.strptime(inschrijving_einde, '%Y-%m-%d %H:%M:%S'))
+            elif isinstance(inschrijving_einde, datetime) and inschrijving_einde.tzinfo is None:
+                inschrijving_einde = TIMEZONE.localize(inschrijving_einde)
+
+            formatted_resultaten.append((
+                naam,
+                away_datum,
+                aantal_kaarten,
+                gebruikers,
+                geselecteerde_gebruikers,
+                away_id,
+                inschrijving_einde
+            ))
+
+        return render_template(
+            "lijst_away.html",
+            resultaten=formatted_resultaten,
+            format_datetime=format_datetime,
+            current_page=page,
+            total_pages=total_pages,
+            now=now
+        )
     except Exception as e:
         print("Fout bij het uitvoeren van de query:", e)
         return "Er is een fout opgetreden bij het ophalen van de gegevens.", 500

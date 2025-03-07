@@ -4,3 +4,4 @@ authlib>=1.0
 requests>=2.27.1
 psycopg2-binary>=2.9.3
 babel
+pytz==2023.3
