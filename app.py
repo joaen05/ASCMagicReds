@@ -820,13 +820,13 @@ def away_lijsten():
         ), 
         'Nog geen geselecteerde gebruikers'
     ) AS geselecteerde_gebruikers,
-    ua.away_id,
+    ad.id,
     ad.inschrijving_einde
 FROM away_details ad
 JOIN aways a ON ad.away_id = a.id
 LEFT JOIN user_aways ua ON ad.id = ua.away_id  -- Dit moet de juiste join zijn
 LEFT JOIN users u ON ua.user_id = u.id
-GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten, ua.away_id, ad.inschrijving_einde
+GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten, ad.id, ad.inschrijving_einde
 ORDER BY ad.away_datum
 LIMIT %s OFFSET %s
 
