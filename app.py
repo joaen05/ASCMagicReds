@@ -7,6 +7,7 @@ import os
 from functools import wraps
 from babel.dates import format_datetime, pytz
 import datetime
+from datetime import datetime
 import threading
 import time
 import requests
@@ -409,89 +410,119 @@ def delete_member(id):
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
 
-from datetime import datetime
 
 
 @app.route('/inschrijven_away', methods=['GET', 'POST'])
 @login_required
 def inschrijven_away():
+    print("inschrijven_away route wordt uitgevoerd")  # Debug-informatie
+
     # Haal de pagina parameter uit de URL (standaard naar 1 als deze niet bestaat)
     page = request.args.get('page', 1, type=int)
+    print(f"Huidige pagina: {page}")  # Debug-informatie
 
-    # Ophalen van alle available 'aways' met details zoals datum en inschrijvingen
+    # Maak verbinding met de database
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Haal alle away details op
+    # Stel de tijdzone in op 'Europe/Brussels'
+    cursor.execute("SET TIMEZONE = 'Europe/Brussels';")
+    conn.commit()
+
+    # Controleer en sluit inschrijvingen die verlopen zijn
+    cursor.execute(''' 
+        SELECT id, inschrijving_einde 
+        FROM away_details 
+        WHERE is_closed = FALSE AND inschrijving_einde < NOW()
+    ''')
+    expired_aways = cursor.fetchall()
+    print(f"Verlopen inschrijvingen: {expired_aways}")  # Debug-informatie
+
+    cursor.execute(''' 
+        UPDATE away_details 
+        SET is_closed = TRUE 
+        WHERE is_closed = FALSE AND inschrijving_einde < NOW()
+    ''')
+    conn.commit()
+    print(f"Aantal gesloten inschrijvingen: {cursor.rowcount}")  # Debug-informatie
+
+    # Haal alle away details op die nog niet gesloten zijn
     cursor.execute(''' 
         SELECT ad.id, a.naam, ad.aantal_kaarten, ad.beschrijving, ad.away_datum, ad.inschrijving_einde, ad.is_closed
         FROM away_details ad
         JOIN aways a ON ad.away_id = a.id
-        WHERE ad.is_closed = FALSE  -- Gebruik FALSE in plaats van 0
+        WHERE ad.is_closed = FALSE
         ORDER BY ad.inschrijving_einde ASC
     ''')
     available_aways = cursor.fetchall()
+    print(f"Aantal beschikbare aways: {len(available_aways)}")  # Debug-informatie
 
     # Verkrijg de huidige tijd voor de server-side logica
-    current_time = datetime.now()
+    current_time = datetime.now(pytz.timezone('Europe/Brussels'))
+    print(f"Huidige tijd: {current_time}")  # Debug-informatie
 
-    # Converteer de 'away_datum' naar een datetime object
-    for i in range(len(available_aways)):
-        away = available_aways[i]
-        away_date_str = away[4]  # 'away_datum' is op index 4
-        if isinstance(away_date_str, str):  # Controleer of het een string is
-            away_date = datetime.strptime(away_date_str, '%Y-%m-%d %H:%M:%S')  # Pas dit formaat aan als het anders is
-            available_aways[i] = away[:4] + (away_date,) + away[5:]  # Vervang de oude string door een datetime object
-
-    # Controleer of de inschrijving is verlopen en zet is_closed op -1
+    # Converteer de 'away_datum' en 'inschrijving_einde' naar datetime objecten
+    formatted_aways = []
     for away in available_aways:
-        away_id = away[0]
-        inschrijving_einde = away[5]  # inschrijving einde tijd uit de database
-        now = datetime.now()
+        away_id, naam, aantal_kaarten, beschrijving, away_datum_str, inschrijving_einde_str, is_closed = away
 
-        if inschrijving_einde < now:
-            # Als de inschrijvingstijd is verstreken, update de 'is_closed' status naar TRUE
-            cursor.execute(''' 
-                UPDATE away_details
-                SET is_closed = TRUE
-                WHERE id = %s
-            ''', (away_id,))
-            conn.commit()
+        # Converteer away_datum
+        if isinstance(away_datum_str, str):
+            away_datum = datetime.strptime(away_datum_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.timezone('Europe/Brussels'))
+        else:
+            away_datum = away_datum_str
+
+        # Converteer inschrijving_einde
+        if isinstance(inschrijving_einde_str, str):
+            inschrijving_einde = datetime.strptime(inschrijving_einde_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.timezone('Europe/Brussels'))
+        else:
+            inschrijving_einde = inschrijving_einde_str
+
+        formatted_aways.append((away_id, naam, aantal_kaarten, beschrijving, away_datum, inschrijving_einde, is_closed))
 
     # Haal de huidige gebruiker op
     user_email = session.get('user', {}).get('userinfo', {}).get('email')
     cursor.execute("SELECT id FROM users WHERE email = %s", (user_email,))
     user_id_tuple = cursor.fetchone()
     user_id = user_id_tuple[0] if user_id_tuple else None
+    print(f"User ID: {user_id}")  # Debug-informatie
 
     # Controleer voor elke away of de gebruiker al heeft ingeschreven
     away_inschrijving_status = {}
     if user_id:
-        for away in available_aways:
+        for away in formatted_aways:
             away_id = away[0]
             cursor.execute("SELECT 1 FROM user_aways WHERE user_id = %s AND away_id = %s", (user_id, away_id))
             if cursor.fetchone():
                 away_inschrijving_status[away_id] = "ja"
             else:
                 away_inschrijving_status[away_id] = "nee"
+    print(f"Away inschrijving status: {away_inschrijving_status}")  # Debug-informatie
 
     # Bereken het aantal pagina's van inschrijvingen
-    per_page = 1  # We kunnen dit later variëren voor je paginering
-    total_aways = len(available_aways)
+    per_page = 1  # Aantal aways per pagina
+    total_aways = len(formatted_aways)
     total_pages = (total_aways + per_page - 1) // per_page  # Berekent het totaal aantal pagina's
+    print(f"Totaal aantal pagina's: {total_pages}")  # Debug-informatie
 
     # Bepaal welke inschrijvingen we moeten weergeven voor de huidige pagina
     start_index = (page - 1) * per_page
     end_index = min(page * per_page, total_aways)
 
     # Toon alleen de activiteiten voor de huidige pagina
-    paginated_aways = available_aways[start_index:end_index]
+    paginated_aways = formatted_aways[start_index:end_index]
+    print(f"Paginated aways: {paginated_aways}")  # Debug-informatie
 
     conn.close()
 
-    return render_template('inschrijven_away.html', available_aways=paginated_aways, current_page=page,
-                           total_pages=total_pages, current_time=current_time, format_datetime=format_datetime,
+    return render_template('inschrijven_away.html',
+                           available_aways=paginated_aways,
+                           current_page=page,
+                           total_pages=total_pages,
+                           current_time=current_time,
+                           format_datetime=format_datetime,
                            away_inschrijving_status=away_inschrijving_status)
+
 @app.route('/beheren_away')
 @login_required
 @admin_required
@@ -782,9 +813,8 @@ TIMEZONE = pytz.timezone('Europe/Brussels')
 @admin_required
 def away_lijsten():
     try:
-        # Haal de pagina parameter uit de URL (standaard naar 1 als deze niet bestaat)
         page = request.args.get('page', 1, type=int)
-        per_page = 1  # Aantal aways per pagina (kan je aanpassen naar wens)
+        per_page = 1
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -795,17 +825,11 @@ def away_lijsten():
         for away_id in away_ids:
             update_geselecteerde_gebruikers(away_id)
 
-        # Haal het totaal aantal aways op
         cursor.execute("SELECT COUNT(*) FROM away_details")
         total_aways = cursor.fetchone()[0]
-
-        # Bereken het totale aantal pagina's
         total_pages = (total_aways + per_page - 1) // per_page
-
-        # Bepaal de offset voor de huidige pagina
         offset = (page - 1) * per_page
 
-        # Haal de lijsten op voor de aways van de huidige pagina
         cursor.execute("""
             SELECT 
                 a.naam, 
@@ -839,15 +863,12 @@ def away_lijsten():
         resultaten = cursor.fetchall()
         conn.close()
 
-        # Zorg ervoor dat alle datetimes offset-aware zijn
-        now = datetime.now(TIMEZONE)  # Huidige tijd met tijdzone
+        now = datetime.now(TIMEZONE)
 
-        # Converteer de datetimes in de resultaten naar offset-aware
         formatted_resultaten = []
         for rij in resultaten:
             naam, away_datum, aantal_kaarten, gebruikers, geselecteerde_gebruikers, away_id, inschrijving_einde = rij
 
-            # Converteer away_datum en inschrijving_einde naar offset-aware datetimes
             if isinstance(away_datum, str):
                 away_datum = TIMEZONE.localize(datetime.strptime(away_datum, '%Y-%m-%d %H:%M:%S'))
             elif isinstance(away_datum, datetime) and away_datum.tzinfo is None:
@@ -886,10 +907,11 @@ def away_lijsten():
 @admin_required
 def bewerk_lijst(away_id):
     try:
+        page = request.args.get('page', 1, type=int)  # Haal het paginanummer op
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Haal de geselecteerde leden op voor deze away
         cursor.execute('''
             SELECT u.id, u.voornaam, u.naam, u.one_account_id
             FROM users u
@@ -899,7 +921,6 @@ def bewerk_lijst(away_id):
         ''', (away_id,))
         geselecteerde_leden = cursor.fetchall()
 
-        # Haal alle leden op die niet geselecteerd zijn voor deze away
         cursor.execute('''
             SELECT u.id, u.voornaam, u.naam, u.one_account_id
             FROM users u
@@ -908,18 +929,16 @@ def bewerk_lijst(away_id):
         ''', (away_id,))
         niet_geselecteerde_leden = cursor.fetchall()
 
-        # Haal het aantal kaarten op voor deze away
         cursor.execute("SELECT aantal_kaarten FROM away_details WHERE id = %s", (away_id,))
         aantal_kaarten = cursor.fetchone()[0]
 
-        # Controleer of er leden in de wacht staan
         cursor.execute("""
             SELECT COUNT(*)
             FROM users u
             JOIN user_aways ua ON u.id = ua.user_id
             WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
         """, (away_id,))
-        leden_in_wacht = cursor.fetchone()[0] > 0  # Boolean: True als er leden in de wacht staan, anders False
+        leden_in_wacht = cursor.fetchone()[0] > 0
 
         conn.close()
 
@@ -928,7 +947,8 @@ def bewerk_lijst(away_id):
                               niet_geselecteerde_leden=niet_geselecteerde_leden,
                               aantal_kaarten=aantal_kaarten,
                               away_id=away_id,
-                              leden_in_wacht=leden_in_wacht)  # Geef leden_in_wacht door aan de template
+                              leden_in_wacht=leden_in_wacht,
+                              current_page=page)  # Geef het paginanummer door aan de template
     except Exception as e:
         print(f"Fout bij het ophalen van de lijst: {e}")
         return redirect(url_for('away_lijsten'))
@@ -1039,6 +1059,33 @@ def vervang_gebruiker(away_id, verwijderde_user_id):
     except Exception as e:
         print(f"Fout bij vervangen gebruiker: {e}")
         return "Er is een fout opgetreden", 500
+
+@app.route("/refresh_page", methods=["POST"])
+def refresh_page():
+    return redirect(url_for("inschrijven_away"))
+
+
+@app.route('/check_closed_inschrijvingen', methods=['GET'])
+def check_closed_inschrijvingen():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Haal alle inschrijvingen op die gesloten moeten worden
+        cursor.execute(''' 
+            SELECT id 
+            FROM away_details 
+            WHERE is_closed = FALSE AND inschrijving_einde < NOW()
+        ''')
+        closed_inschrijvingen = cursor.fetchall()
+
+        conn.close()
+
+        # Retourneer een lijst van IDs van gesloten inschrijvingen
+        return {'closed_inschrijvingen': [row[0] for row in closed_inschrijvingen]}
+    except Exception as e:
+        print(f"Fout bij het controleren van gesloten inschrijvingen: {e}")
+        return {'error': 'Er is een fout opgetreden'}, 500
 
 if __name__ == "__main__":
     t = threading.Thread(target=keep_alive)

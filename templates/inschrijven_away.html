@@ -197,14 +197,7 @@
     </div>
 
 <script>
-    function confirmDelete(awayID) {
-        var confirmation = confirm("Weet je zeker dat je deze away wilt verwijderen?");
-        if (confirmation) {
-            document.getElementById('delete-form-' + awayID).submit();
-        }
-    }
-
-    function updateCountdown(endTime, elementId, buttonId) {
+    function updateCountdown(endTime, elementId, buttonId, awayId) {
         const countdownElement = document.getElementById(elementId);
         const buttonElement = document.getElementById(buttonId);
         const endDate = new Date(endTime).getTime();
@@ -217,7 +210,7 @@
                 const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
                 const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                const seconds = Math.floor((timeLeft % (1000 * 60)) / (1000));
 
                 countdownElement.innerHTML = `${days}d ${hours}u ${minutes}m ${seconds}s`;
                 buttonElement.disabled = false;
@@ -225,6 +218,14 @@
                 countdownElement.innerHTML = "Inschrijving gesloten";
                 buttonElement.disabled = true;
                 clearInterval(interval);
+
+                // Stuur een verzoek naar Flask om de pagina te herladen
+                fetch("/refresh_page", { method: "POST" })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.reload();
+                        }
+                    });
             }
         }
 
@@ -233,8 +234,30 @@
     }
 
     {% for away in available_aways %}
-        updateCountdown("{{ away[5] }}", "countdown_{{ away[0] }}", "submit_{{ away[0] }}");
+        updateCountdown("{{ away[5] }}", "countdown_{{ away[0] }}", "submit_{{ away[0] }}", {{ away[0] }});
     {% endfor %}
+
+    function checkForClosedInschrijvingen() {
+        fetch('/check_closed_inschrijvingen')
+            .then(response => response.json())
+            .then(data => {
+                if (data.closed_inschrijvingen && data.closed_inschrijvingen.length > 0) {
+                    // Als er gesloten inschrijvingen zijn, herlaad de pagina
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Fout bij het controleren van gesloten inschrijvingen:', error);
+            });
+    }
+
+    // Voer de controle direct uit wanneer de pagina wordt geladen
+    document.addEventListener("DOMContentLoaded", function() {
+        checkForClosedInschrijvingen();
+    });
+
+    // Voer de controle elke 30 seconden uit
+    setInterval(checkForClosedInschrijvingen, 30000); // 30 seconden
 </script>
 
 </body>

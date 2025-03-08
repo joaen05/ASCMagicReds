@@ -169,7 +169,7 @@
                                         <div class="btn-group knoppen">
                                             <!-- Bewerkknop: Alleen beschikbaar na inschrijving einde -->
                                             {% if rij[6] < now %}
-                                                <a href="{{ url_for('bewerk_lijst', away_id=rij[5]) }}" class="btn btn-sm btn-warning">
+                                                <a href="{{ url_for('bewerk_lijst', away_id=rij[5], page=current_page) }}" class="btn btn-sm btn-warning">
                                                     <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
                                                 </a>
                                             {% else %}
