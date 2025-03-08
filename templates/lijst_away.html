@@ -146,7 +146,6 @@
         }
     }
 </style>
-
 </head>
 <body>
     <div class="container">
@@ -252,6 +251,29 @@
     </div>
 
     <script>
+        // Functie om de pagina te herladen op een specifiek tijdstip
+        function reloadPageAtSpecificTime(targetTime) {
+            const now = new Date(); // Huidige tijd
+            const target = new Date(targetTime); // Tijd waarop de knop moet veranderen
+
+            // Bereken het verschil in milliseconden
+            const timeDifference = target - now;
+
+            // Als de target tijd in de toekomst ligt, stel een timeout in
+            if (timeDifference > 0) {
+                setTimeout(() => {
+                    window.location.reload(); // Herlaad de pagina
+                }, timeDifference);
+            }
+        }
+
+        // Roep de functie aan voor elke rij in de lijst
+        {% for rij in resultaten %}
+            reloadPageAtSpecificTime("{{ rij[6].isoformat() }}"); // Voor de download- en bewerk-knoppen
+            reloadPageAtSpecificTime("{{ rij[1].isoformat() }}"); // Voor de bevestig-knop
+        {% endfor %}
+
+        // Functie om te bevestigen voordat een lijst wordt verwijderd
         function confirmDelete(awayId) {
             if (confirm("Weet je zeker dat je deze lijst wilt verwijderen?")) {
                 document.getElementById('delete-form-' + awayId).submit();
