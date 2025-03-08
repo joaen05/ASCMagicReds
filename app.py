@@ -1063,6 +1063,132 @@ def vervang_gebruiker(away_id, verwijderde_user_id):
         print(f"Fout bij vervangen gebruiker: {e}")
         return "Er is een fout opgetreden", 500
 
+
+@app.route('/vervang_gebruiker_kies_vrevanger/<int:away_id>/<int:verwijderde_user_id>')
+@login_required
+@admin_required
+def vervang_gebruiker_kies_vrevanger(away_id, verwijderde_user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+
+        cursor.execute("""
+                   SELECT u.voornaam, u.naam
+                    FROM users u
+                    WHERE u.id = %s
+
+                """, (verwijderde_user_id,))
+
+        oude_naam = cursor.fetchone()
+
+        cursor.execute("""
+           SELECT u.id, u.voornaam, u.naam
+            FROM users u
+            LEFT JOIN user_aways ua ON ua.user_id = u.id AND ua.away_id = %s
+            WHERE (ua.away_id = %s AND ua.geselecteerd = false)
+               OR ua.away_id IS NULL
+            ORDER BY u.naam;
+
+        """, (away_id,away_id))
+
+        lijst_mogelijke_leden = cursor.fetchall()
+
+        conn.commit()
+        conn.close()
+
+        for rij in lijst_mogelijke_leden:
+            print(rij)
+
+        return render_template('zelf_gekozen_vervanger.html', away_id=away_id,verwijderde_user_id = verwijderde_user_id,lijst_mogelijke_leden = lijst_mogelijke_leden,oude_naam = oude_naam)
+
+    except Exception as e:
+        print(f"Fout bij verwijderen gebruiker: {e}")
+        return "Er is een fout opgetreden", 500
+
+
+@app.route('/zelf_gekozen_vervanger', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def zelf_gekozen_vervanger():
+    if request.method == 'POST':
+        away_id = request.form.get('away_id')
+        nieuwe_gebruiker_id = request.form.get('nieuwe_gebruiker')
+        verwijderde_user_id = request.form.get('verwijderde_user_id')
+
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                DELETE FROM user_aways
+                WHERE away_id = %s AND user_id = %s
+            """, (away_id, verwijderde_user_id))
+
+            cursor.execute("""
+                SELECT * FROM user_aways
+                WHERE user_id = %s AND away_id = %s
+            """, (nieuwe_gebruiker_id, away_id,))
+
+            check = cursor.fetchone()
+            if check is None:
+                cursor.execute("""
+                    INSERT INTO user_aways (user_id, away_id, geselecteerd)
+                    VALUES (%s, %s, TRUE)
+                """, (nieuwe_gebruiker_id, away_id,))
+            else:
+                cursor.execute("""
+                    UPDATE user_aways 
+                    SET geselecteerd = TRUE 
+                    WHERE away_id = %s AND user_id = %s
+                """, (away_id, nieuwe_gebruiker_id))
+
+            conn.commit()
+            conn.close()
+
+            return redirect(url_for('bewerk_lijst', away_id=away_id))
+
+        except Exception as e:
+            print(f"Fout bij vervangen gebruiker: {e}")
+            return "Er is een fout opgetreden", 500
+
+    # Als het een GET-verzoek is, render dan de template
+    return render_template('zelf_gekozen_vervanger.html')
+
+
+
+@app.route('/verwijder_gebruiker_zonder_vervangen/<int:away_id>/<int:verwijderde_user_id>')
+@login_required
+@admin_required
+def verwijder_gebruiker_zonder_vervangen(away_id, verwijderde_user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+
+        # Stap 2: Verwijder de gebruiker helemaal uit de selectie
+        cursor.execute("""
+            DELETE FROM user_aways
+            WHERE away_id = %s AND user_id = %s
+        """, (away_id, verwijderde_user_id))
+
+        # Stap 3: Zoek de gebruiker met de hoogste punten die nog niet geselecteerd is
+        cursor.execute("""
+           DELETE FROM user_aways
+            WHERE away_id = %s AND geselecteerd = FALSE
+        """, (away_id,))
+
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for('bewerk_lijst', away_id=away_id))
+
+    except Exception as e:
+        print(f"Fout bij verwijderen gebruiker: {e}")
+        return "Er is een fout opgetreden", 500
+
+
+
 @app.route("/refresh_page", methods=["POST"])
 def refresh_page():
     return redirect(url_for("inschrijven_away"))

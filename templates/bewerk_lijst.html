@@ -35,7 +35,8 @@
                             </button>
                             <div class="dropdown-menu" aria-labelledby="dropdownMenu{{ loop.index }}">
                                 <a class="dropdown-item" id="volgendLidLink{{ loop.index }}" href="{{ url_for('vervang_gebruiker', away_id=away_id, verwijderde_user_id=lid[0]) }}">Volgend lid</a>
-                                <a class="dropdown-item" href="#">Zelf kiezen</a>
+                                <a class="dropdown-item" id="vervangenLidZelfKiezen{{ loop.index }}" href="{{ url_for('vervang_gebruiker_kies_vrevanger', away_id=away_id, verwijderde_user_id=lid[0]) }}">Zelf kiezen</a>
+                                <a class="dropdown-item" id="niemandInPlek{{ loop.index }}" href="{{ url_for('verwijder_gebruiker_zonder_vervangen', away_id=away_id, verwijderde_user_id=lid[0]) }}">Niemand vervangen</a>
                             </div>
                         </div>
                     </td>
