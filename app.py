@@ -674,13 +674,14 @@ def aanmaken_inschrijving_away():
 @admin_required
 def bewerken_away_details(away_id):
     try:
+        page = request.args.get('page', 1, type=int)  # Haal het paginanummer op
         conn = get_db_connection()
         cursor = conn.cursor()
 
         if request.method == 'POST':
             # Haal de form-gegevens op en werk de away inschrijving bij
-            away_id_new = request.form['away_id']  # Nieuwe away_id uit de dropdown
-            aantal_kaarten = int(request.form['aantal_kaarten'])  # Aantal kaarten
+            away_id_new = request.form['away_id']
+            aantal_kaarten = int(request.form['aantal_kaarten'])
             beschrijving = request.form['beschrijving']
             away_datum = request.form['away_datum']
             inschrijving_einde = request.form['inschrijving_einde']
@@ -706,7 +707,7 @@ def bewerken_away_details(away_id):
             update_geselecteerde_gebruikers(away_id)
 
             conn.close()
-            return redirect(url_for('inschrijven_away'))
+            return redirect(url_for('inschrijven_away', page=page))  # Redirect naar de juiste pagina
         else:
             # Haal de bestaande gegevens op
             cursor.execute("SELECT * FROM away_details WHERE id = %s", (away_id,))
@@ -726,9 +727,11 @@ def bewerken_away_details(away_id):
             away_details_dict = dict(zip(keys, away_details))
 
             # Stuur de gegevens naar de template
-            return render_template('bewerken_away_details.html', away_details=away_details_dict, available_aways=available_aways)
+            return render_template('bewerken_away_details.html', away_details=away_details_dict, available_aways=available_aways, current_page=page)
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
+
+
 @app.route('/verwijder_away_details/<int:away_id>', methods=['POST'])
 @login_required
 @admin_required

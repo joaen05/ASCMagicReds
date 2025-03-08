@@ -135,7 +135,7 @@
                             <span>{{ format_datetime(away[4], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span>
                             {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
                                 <div class="btn-group">
-                                    <a href="{{ url_for('bewerken_away_details', away_id=away[0]) }}" class="btn btn-sm btn-warning">
+                                    <a href="{{ url_for('bewerken_away_details', away_id=away[0], page=current_page) }}" class="btn btn-sm btn-warning">
                                         <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 25px; height: 25px;">
                                     </a>
                                     <form action="{{ url_for('verwijder_away_details', away_id=away[0]) }}" method="POST" style="display:inline;" id="delete-form-{{ away[0] }}">
