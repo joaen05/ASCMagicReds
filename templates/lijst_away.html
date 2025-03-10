@@ -1,16 +1,9 @@
 {% extends 'base.html' %}
 
-{% block title %}Away Lijsten{% endblock %}
+{% block title %}lijsten{% endblock %}
 
 {% block content %}
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Away Lijsten</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <style>
+<style>
     .scrollbar {
         flex-grow: 1;
         max-height: 180px;
@@ -251,26 +244,52 @@
     </div>
 
     <script>
-        // Functie om de pagina te herladen op een specifiek tijdstip
+        console.log("Pagina wordt geladen of herladen.");
+        let isReloadScheduled = false; // Vlag om te controleren of de timeout al is ingesteld
+
         function reloadPageAtSpecificTime(targetTime) {
+            if (isReloadScheduled) {
+                console.log("Herladen is al gepland. Nieuwe aanvraag genegeerd.");
+                return;
+            }
+
+            console.log("Controleer doel-tijd:", targetTime);
+
+            if (!targetTime) {
+                console.error("Geen doel-tijd opgegeven.");
+                return;
+            }
+
             const now = new Date(); // Huidige tijd
-            const target = new Date(targetTime); // Tijd waarop de knop moet veranderen
+            const target = new Date(targetTime); // Tijd waarop de pagina moet herladen
+
+            // Controleer of de doel-tijd een geldige datum is
+            if (isNaN(target.getTime())) {
+                console.error("Ongeldige doel-tijd:", targetTime);
+                return;
+            }
 
             // Bereken het verschil in milliseconden
             const timeDifference = target - now;
 
-            // Als de target tijd in de toekomst ligt, stel een timeout in
+            // Als de doel-tijd in de toekomst ligt, stel een timeout in
             if (timeDifference > 0) {
+                isReloadScheduled = true; // Markeer dat de timeout is ingesteld
+                console.log(`Pagina wordt herladen over ${timeDifference} milliseconden.`);
                 setTimeout(() => {
+                    console.log("Pagina wordt nu herladen vanwege:", targetTime);
                     window.location.reload(); // Herlaad de pagina
                 }, timeDifference);
+            } else {
+                console.log("Doel-tijd is in het verleden. Pagina wordt niet herladen.");
             }
         }
 
-        // Roep de functie aan voor elke rij in de lijst
+        // Roep de functie aan voor elke rij in resultaten
         {% for rij in resultaten %}
-            reloadPageAtSpecificTime("{{ rij[6].isoformat() }}"); // Voor de download- en bewerk-knoppen
-            reloadPageAtSpecificTime("{{ rij[1].isoformat() }}"); // Voor de bevestig-knop
+            console.log("Away:", "{{ rij[0] }}", "| Away datum:", "{{ rij[1] }}", "| Inschrijving einde:", "{{ rij[6] }}");
+            reloadPageAtSpecificTime("{{ rij[6].isoformat() }}"); // Voor inschrijving_einde
+            reloadPageAtSpecificTime("{{ rij[1].isoformat() }}"); // Voor away_datum
         {% endfor %}
 
         // Functie om te bevestigen voordat een lijst wordt verwijderd
