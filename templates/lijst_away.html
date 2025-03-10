@@ -278,7 +278,7 @@
                 console.log(`Pagina wordt herladen over ${timeDifference} milliseconden.`);
                 setTimeout(() => {
                     console.log("Pagina wordt nu herladen vanwege:", targetTime);
-                    window.location.reload(); // Herlaad de pagina
+                    window.location.reload(true); // Herlaad de pagina
                 }, timeDifference);
             } else {
                 console.log("Doel-tijd is in het verleden. Pagina wordt niet herladen.");
