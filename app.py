@@ -199,7 +199,12 @@ def vervang_geselecteerde_gebruiker(away_id, verwijderde_user_id):
     except Exception as e:
         print(f"Fout bij het vervangen van een gebruiker: {e}")
 
-
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 @app.route('/ping')
 def ping():
     return 'OK', 200
