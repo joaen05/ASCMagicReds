@@ -941,7 +941,7 @@ def bewerk_lijst(away_id):
             JOIN user_aways ua ON u.id = ua.user_id
             WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
         """, (away_id,))
-        leden_in_wacht = cursor.fetchone()[0] > 0
+        leden_in_wacht = cursor.fetchone()[0]
 
         cursor.execute("SELECT count(user_id) FROM user_aways WHERE away_id = %s AND geselecteerd = TRUE", (away_id,))
         aantal_geselecteerde_leden = cursor.fetchone()[0]
