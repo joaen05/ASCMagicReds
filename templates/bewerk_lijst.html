@@ -4,10 +4,24 @@
 
 {% block content %}
 <div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 header-container">
         <h2>Bewerk Lijst</h2>
-        <input type="text" id="searchInput" class="form-control form-control-sm mb-3"
+        <input type="text" id="searchInput" class="form-control form-control-sm mb-3 search-bar"
            placeholder="🔍 Zoek op voornaam..." onkeyup="filterLeden()" style="max-width: 400px;">
+        <div class="d-flex align-items-center knop-en-vergelijking">
+            <div class="dropdown">
+                <button class="btn btn-sm btn-success dropdown-toggle" type="button" id="dropdownMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    Lid toevoegen
+                </button>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" id="ToevoegenLid" href="{{ url_for('toevoegen_lid_aan_lijst', away_id=away_id)}}"
+                       {% if aantal_geselecteerde_leden >= aantal_kaarten %}style="pointer-events: none; opacity: 0.5;"{% endif %}>Toevoegen</a>
+                </div>
+            </div>
+            <div class="aantal-geselecteerde ml-2">
+                {{aantal_geselecteerde_leden}}/{{ aantal_kaarten }}
+            </div>
+        </div>
     </div>
 
     <div style="max-height: calc(100vh - 200px); overflow-y: auto;">
@@ -52,19 +66,16 @@
 </div>
 
 <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const aantalGeselecteerde = {{ aantal_geselecteerde_leden }};
+        const aantalKaarten = {{ aantal_kaarten }};
+        const toevoegenLidLink = document.getElementById("ToevoegenLid");
 
-    document.addEventListener("DOMContentLoaded", function() {
-        const ledenInWacht = {{ leden_in_wacht | tojson }};  // Haal de waarde van leden_in_wacht op
-
-        if (!ledenInWacht) {
-            // Schakel alle "Volgend lid" links uit
-            const volgendLidLinks = document.querySelectorAll('[id^="volgendLidLink"]');
-            volgendLidLinks.forEach(link => {
-                link.removeAttribute('href');  // Verwijder de href
-                link.style.pointerEvents = 'none';  // Voorkom klikken
-                link.style.opacity = '0.5';  // Maak de link doorzichtig
-                link.classList.add('disabled');  // Voeg een disabled klasse toe
-            });
+        if (aantalGeselecteerde >= aantalKaarten) {
+            toevoegenLidLink.removeAttribute('href');
+            toevoegenLidLink.style.pointerEvents = 'none';
+            toevoegenLidLink.style.opacity = '0.5';
+            toevoegenLidLink.classList.add('disabled');
         }
     });
 
@@ -115,8 +126,32 @@
         cursor: not-allowed !important;
     }
 
-
     @media (max-width: 768px) {
+        .header-container {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .header-container h2 {
+            margin-bottom: 10px;
+        }
+
+        .header-container .search-bar {
+            margin-bottom: 10px;
+            max-width: 100%;
+        }
+
+        .header-container .knop-en-vergelijking {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .header-container .knop-en-vergelijking .aantal-geselecteerde {
+            margin-left: 10px; /* Ruimte tussen de knop en de vergelijking */
+        }
+
         .table th, .table td {
             font-size: 14px;
         }
@@ -125,7 +160,5 @@
             font-size: 14px;
         }
     }
-
-
 </style>
 {% endblock %}

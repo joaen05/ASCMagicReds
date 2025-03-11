@@ -199,12 +199,7 @@ def vervang_geselecteerde_gebruiker(away_id, verwijderde_user_id):
     except Exception as e:
         print(f"Fout bij het vervangen van een gebruiker: {e}")
 
-@app.after_request
-def add_header(response):
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+
 @app.route('/ping')
 def ping():
     return 'OK', 200
@@ -948,12 +943,16 @@ def bewerk_lijst(away_id):
         """, (away_id,))
         leden_in_wacht = cursor.fetchone()[0] > 0
 
+        cursor.execute("SELECT count(user_id) FROM user_aways WHERE away_id = %s AND geselecteerd = TRUE", (away_id,))
+        aantal_geselecteerde_leden = cursor.fetchone()[0]
+
         conn.close()
 
         return render_template('bewerk_lijst.html',
                               geselecteerde_leden=geselecteerde_leden,
                               niet_geselecteerde_leden=niet_geselecteerde_leden,
                               aantal_kaarten=aantal_kaarten,
+                              aantal_geselecteerde_leden = aantal_geselecteerde_leden,
                               away_id=away_id,
                               leden_in_wacht=leden_in_wacht,
                               current_page=page)  # Geef het paginanummer door aan de template
@@ -1220,6 +1219,14 @@ def check_closed_inschrijvingen():
     except Exception as e:
         print(f"Fout bij het controleren van gesloten inschrijvingen: {e}")
         return {'error': 'Er is een fout opgetreden'}, 500
+
+@app.route('/toevoegen_lid_aan_lijst/<int:away_id>')
+@login_required
+@admin_required
+def toevoegen_lid_aan_lijst(away_id):
+    pass
+
+
 
 if __name__ == "__main__":
     t = threading.Thread(target=keep_alive)
