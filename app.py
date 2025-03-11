@@ -1101,9 +1101,6 @@ def vervang_gebruiker_kies_vrevanger(away_id, verwijderde_user_id):
         conn.commit()
         conn.close()
 
-        for rij in lijst_mogelijke_leden:
-            print(rij)
-
         return render_template('zelf_gekozen_vervanger.html', away_id=away_id,verwijderde_user_id = verwijderde_user_id,lijst_mogelijke_leden = lijst_mogelijke_leden,oude_naam = oude_naam)
 
     except Exception as e:
@@ -1224,7 +1221,100 @@ def check_closed_inschrijvingen():
 @login_required
 @admin_required
 def toevoegen_lid_aan_lijst(away_id):
-    pass
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT COUNT(*) FROM user_aways
+        WHERE away_id = %s
+        """, (away_id,))
+
+    aantal_leden = cursor.fetchone()[0]
+
+    cursor.execute("""
+            SELECT aantal_kaarten FROM away_details
+            WHERE id = %s
+            """, (away_id,))
+    aantal_kaarten = cursor.fetchone()[0]
+
+
+    if aantal_leden >= aantal_kaarten:
+        return redirect(url_for('bewerk_lijst', away_id=away_id))
+
+    cursor.execute("""
+              SELECT u.id, u.voornaam, u.naam
+               FROM users u
+               LEFT JOIN user_aways ua ON ua.user_id = u.id AND ua.away_id = %s
+               WHERE (ua.away_id = %s AND ua.geselecteerd = false)
+                  OR ua.away_id IS NULL
+               ORDER BY u.naam;
+
+           """, (away_id, away_id))
+
+    lijst_mogelijke_leden = cursor.fetchall()
+
+    return render_template('toevoegen_lid_lijst.html', away_id=away_id,
+                           lijst_mogelijke_leden=lijst_mogelijke_leden)
+
+
+@app.route('/verwerk_lid_toevoegen_lijst', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def verwerk_lid_toevoegen_lijst():
+    if request.method == 'POST':
+
+        away_id = request.form.get('away_id')
+        nieuwe_gebruiker_id = request.form.get('nieuwe_gebruiker')
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                SELECT COUNT(*) FROM user_aways
+                WHERE away_id = %s
+                """, (away_id,))
+
+        aantal_leden = cursor.fetchone()[0]
+
+        cursor.execute("""
+                    SELECT aantal_kaarten FROM away_details
+                    WHERE id = %s
+                    """, (away_id,))
+        aantal_kaarten = cursor.fetchone()[0]
+
+        if aantal_leden >= aantal_kaarten:
+            return redirect(url_for('bewerk_lijst', away_id=away_id))
+
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                        SELECT * FROM user_aways
+                        WHERE user_id = %s AND away_id = %s
+                    """, (nieuwe_gebruiker_id, away_id,))
+
+            check = cursor.fetchone()
+            if check is None:
+                cursor.execute("""
+                            INSERT INTO user_aways (user_id, away_id, geselecteerd)
+                            VALUES (%s, %s, TRUE)
+                        """, (nieuwe_gebruiker_id, away_id,))
+            else:
+                cursor.execute("""
+                            UPDATE user_aways 
+                            SET geselecteerd = TRUE 
+                            WHERE away_id = %s AND user_id = %s
+                        """, (away_id, nieuwe_gebruiker_id))
+
+            conn.commit()
+            conn.close()
+
+            return redirect(url_for('bewerk_lijst', away_id=away_id))
+
+        except Exception as e:
+            print(f"Fout bij vervangen gebruiker: {e}")
+            return "Er is een fout opgetreden", 500
+    return render_template('toevoegen_lid_lijst.html')
 
 
 
