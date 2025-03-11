@@ -69,8 +69,25 @@ def get_db_connection():
     )
     return conn
 
+def get_naam():
+    email = session.get('user', {}).get('userinfo', {}).get('email')
+    if not email:
+        return "Onbekende gebruiker"
 
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT concat(voornaam, ' ', naam) FROM users WHERE email = %s", (email,))
+        result = cursor.fetchone()
+        conn.close()
 
+        return result[0] if result else "Onbekende gebruiker"
+    except psycopg2.Error:
+        return "Databasefout"
+
+@app.context_processor
+def inject_get_naam():
+    return dict(get_naam=get_naam)
 
 # Hulpfunctie om toegang te controleren
 def is_email_in_database(email):

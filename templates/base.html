@@ -87,7 +87,7 @@
                 {% endif %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <img src="{{ url_for('static', filename='profile_icon.png') }}" alt="Profiel" class="profile-icon" style="width: 30px; height: 30px; border-radius: 50%;"> {{ session['user']['userinfo']['name'] }}
+                        <img src="{{ url_for('static', filename='profile_icon.png') }}" alt="Profiel" class="profile-icon" style="width: 30px; height: 30px; border-radius: 50%;"> {{ get_naam() }}
                     </a>
                     <div class="dropdown-menu" aria-labelledby="navbarDropdown">
                         <a class="dropdown-item" href="{{ url_for('logout') }}">Uitloggen</a>
