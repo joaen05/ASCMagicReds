@@ -180,7 +180,7 @@
 
                                             <!-- Downloadknop: Alleen beschikbaar na inschrijving einde -->
                                             {% if rij[6] < now %}
-                                                <a href="{{ url_for('download_lijst')}}" class="btn btn-sm btn-info">
+                                                <a href="{{ url_for('download_lijst', away_id=rij[5])}}" class="btn btn-sm btn-info">
                                                     <img src="{{ url_for('static', filename='download.png') }}" alt="Download" style="width: 25px; height: 25px;">
                                                 </a>
                                             {% else %}

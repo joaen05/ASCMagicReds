@@ -1,4 +1,4 @@
-from flask import Flask, redirect, session, url_for, render_template, request
+from flask import Flask, redirect, session, url_for, render_template, request, send_file
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 import psycopg2
@@ -12,6 +12,11 @@ import threading
 import time
 import requests
 import pytz
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from io import BytesIO
 
 
 
@@ -840,12 +845,12 @@ def away_lijsten():
                 ad.aantal_kaarten,
                 CASE 
                     WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
-                    ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')'), E'\n' ORDER BY u.naam, u.voornaam)
+                    ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' '), E'\n' ORDER BY u.naam, u.voornaam)
                 END AS gebruikers,
                 COALESCE(
                     STRING_AGG(
                         CASE 
-                            WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' (', u.one_account_id, ')')
+                            WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' ')
                             ELSE NULL
                         END, 
                         E'\n' ORDER BY u.naam, u.voornaam
@@ -994,12 +999,78 @@ def verwijder_lijst():
     return redirect(url_for('away_lijsten'))
 
 
-@app.route('/download_lijst')
+
+
+@app.route('/download_lijst/<int:away_id>')
 @login_required
 @admin_required
-def download_lijst():
-    pass
+def download_lijst(away_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
+        # Haal de geselecteerde leden op uit de database
+        cursor.execute("""
+            SELECT u.voornaam, u.naam, u.one_account_id
+            FROM users u
+            JOIN user_aways ua ON u.id = ua.user_id
+            WHERE ua.away_id = %s AND ua.geselecteerd = TRUE
+            ORDER BY u.naam, u.voornaam
+        """, (away_id,))
+        geselecteerde_leden = cursor.fetchall()
+
+
+        cursor.execute("""
+        SELECT a.naam
+        FROM aways a
+        join away_details ad on ad.away_id = a.id
+        WHERE ad.id = %s
+        """,(away_id,))
+        away_naam = cursor.fetchone()[0]
+        conn.close()
+
+        # Maak een PDF-bestand in het geheugen
+        buffer = BytesIO()
+        pdf = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+
+        # Definieer de stijl voor de titel
+        styles = getSampleStyleSheet()
+        title_style = styles['Title']
+        title = Paragraph(away_naam + " away", title_style)
+        elements.append(title)
+
+        # Maak een lijst van rijen voor de tabel
+        data = [["#", "Voornaam", "Achternaam", "OneID"]]
+        for index, lid in enumerate(geselecteerde_leden, start=1):
+            data.append([str(index), lid[0], lid[1], lid[2]])
+
+        # Maak de tabel
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+
+        elements.append(table)
+
+        # Bouw het PDF-bestand
+        pdf.build(elements)
+
+        # Stel de buffer in om te lezen vanaf het begin
+        buffer.seek(0)
+
+        # Stuur het PDF-bestand terug als download
+        return send_file(buffer, as_attachment=True, download_name="lijst "+ away_naam +".pdf", mimetype='application/pdf')
+
+    except Exception as e:
+        print(f"Fout bij het genereren van de PDF: {e}")
+        return "Er is een fout opgetreden bij het genereren van de PDF.", 500
 
 @app.route('/bevestig_lijst')
 @login_required
