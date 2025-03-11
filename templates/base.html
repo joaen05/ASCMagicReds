@@ -67,12 +67,12 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('inschrijven_away') }}">Inschrijven away</a>
                 </li>
-                {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
+                {% if session['is_admin'] %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('beheren_away') }}">Away's beheren</a>
                 </li>
                 {% endif %}
-                {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
+                 {% if session['is_admin'] %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('away_lijsten') }}">Lijsten</a>
                 </li>
@@ -80,7 +80,7 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('points_list') }}">Puntenlijst</a>
                 </li>
-                {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
+                 {% if session['is_admin'] %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('beheer_leden') }}">Leden beheren</a>
                 </li>

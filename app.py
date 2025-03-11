@@ -23,6 +23,7 @@ from io import BytesIO
 # Laad omgevingsvariabelen uit .env-bestand
 load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL')
+ADMIN_EMAIL = "jonahaertssen05@gmail.com"
 
 
 try:
@@ -234,7 +235,7 @@ def callback():
         return redirect(url_for("no_access"))
 
     # Check admin status
-    if user_email == "jonahaertssen05@gmail.com":
+    if user_email == ADMIN_EMAIL:
         session["is_admin"] = True
     else:
         session["is_admin"] = False

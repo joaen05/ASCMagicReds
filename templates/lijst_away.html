@@ -156,7 +156,7 @@
                                 <span>{{ format_datetime(rij[1], "EEEE d MMMM y 'om' HH':'mm", locale="nl") }}</span> <!-- Datum -->
                                 <span>{{ rij[2] }} kaarten</span> <!-- Aantal kaarten -->
 
-                                {% if session['user']['userinfo']['email'] == 'jonahaertssen05@gmail.com' %}
+                                 {% if session['is_admin'] %}
                                     <div class="btn-group">
                                         <div class="btn-group knoppen">
                                             <!-- Bewerkknop: Alleen beschikbaar na inschrijving einde -->
