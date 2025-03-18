@@ -27,14 +27,16 @@
                     <td class="voornaam">{{ lid.voornaam }}</td>
                     <td>{{ lid.naam }}</td>
                     <td>
-                        <a href="{{ url_for('edit_member', id=lid.id) }}" class="btn btn-sm btn-warning">
-                            <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 20px; height: 20px;">
-                        </a>
-                        <form action="{{ url_for('delete_member', id=lid.id) }}" method="POST" style="display:inline;" id="delete-form-{{ lid.id }}">
-                            <button type="button" class="btn btn-sm btn-danger action-button" onclick="confirmDelete({{ lid.id }})">
-                                <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 20px; height: 20px;">
-                            </button>
-                        </form>
+                        <div class="button-container">
+                            <a href="{{ url_for('edit_member', id=lid.id) }}" class="btn btn-sm btn-warning">
+                                <img src="{{ url_for('static', filename='pencil.png') }}" alt="Bewerk" style="width: 20px; height: 20px;">
+                            </a>
+                            <form action="{{ url_for('delete_member', id=lid.id) }}" method="POST" style="display:inline;" id="delete-form-{{ lid.id }}">
+                                <button type="button" class="btn btn-sm btn-danger action-button" onclick="confirmDelete({{ lid.id }})">
+                                    <img src="{{ url_for('static', filename='cross.png') }}" alt="Verwijder" style="width: 20px; height: 20px;">
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -92,6 +94,17 @@
         top: 0;
         background-color: white;
         z-index: 1;
+    }
+
+    .button-container {
+        display: flex;
+        white-space: nowrap;
+        overflow-x: auto;
+    }
+
+    .button-container .btn {
+        flex: 0 0 auto;
+        margin-right: 5px;
     }
 
     @media (max-width: 768px) {
