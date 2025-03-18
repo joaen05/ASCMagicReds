@@ -92,6 +92,71 @@
         $(document).ready(function() {
             $('#away_id').select2();
         });
+
+        document.addEventListener("DOMContentLoaded", function () {
+    let inschrijvingEinde = document.getElementById("inschrijving_einde");
+    let awayDatum = document.getElementById("away_datum");
+
+    function formatDateToLocal(datetime) {
+        let year = datetime.getFullYear();
+        let month = String(datetime.getMonth() + 1).padStart(2, "0");
+        let day = String(datetime.getDate()).padStart(2, "0");
+        let hours = String(datetime.getHours()).padStart(2, "0");
+        let minutes = String(datetime.getMinutes()).padStart(2, "0");
+
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function setMinValues() {
+        let now = new Date();
+        inschrijvingEinde.min = formatDateToLocal(now);
+        awayDatum.min = formatDateToLocal(now);
+    }
+
+    function updateMatchMin() {
+        if (inschrijvingEinde.value) {
+            let sluitMoment = new Date(inschrijvingEinde.value);
+            sluitMoment.setMinutes(sluitMoment.getMinutes() + 1);
+            awayDatum.min = formatDateToLocal(sluitMoment);
+        }
+    }
+
+    function updateInschrijvingMax() {
+        if (awayDatum.value) {
+            let matchMoment = new Date(awayDatum.value);
+            matchMoment.setMinutes(matchMoment.getMinutes() - 1);
+            inschrijvingEinde.max = formatDateToLocal(matchMoment);
+        }
+    }
+
+    function blockInvalidTimes() {
+        let inschrijvingTime = new Date(inschrijvingEinde.value);
+        let matchTime = new Date(awayDatum.value);
+
+        if (awayDatum.value) {
+            inschrijvingEinde.max = formatDateToLocal(new Date(matchTime.getTime() - 60000));
+        }
+
+        if (inschrijvingEinde.value) {
+            awayDatum.min = formatDateToLocal(new Date(inschrijvingTime.getTime() + 60000));
+        }
+    }
+
+    setMinValues();
+    inschrijvingEinde.addEventListener("change", () => {
+        updateMatchMin();
+        blockInvalidTimes();
+    });
+
+    awayDatum.addEventListener("change", () => {
+        updateInschrijvingMax();
+        blockInvalidTimes();
+    });
+});
+
+
+
+
     </script>
 </body>
 </html>

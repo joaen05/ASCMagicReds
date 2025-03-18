@@ -197,6 +197,11 @@
     </div>
 
 <script>
+    function confirmDelete(awayId) {
+        if (confirm("Weet je zeker dat je deze inschrijving wilt verwijderen?")) {
+            document.getElementById("delete-form-" + awayId).submit();
+        }
+    }
     function updateCountdown(endTime, elementId, buttonId, awayId) {
         const countdownElement = document.getElementById(elementId);
         const buttonElement = document.getElementById(buttonId);
