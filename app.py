@@ -1090,11 +1090,53 @@ def download_lijst(away_id):
         print(f"Fout bij het genereren van de PDF: {e}")
         return "Er is een fout opgetreden bij het genereren van de PDF.", 500
 
-@app.route('/bevestig_lijst')
+@app.route('/bevestig_lijst/<int:away_id>')
 @login_required
 @admin_required
-def bevestig_lijst():
-    pass
+def bevestig_lijst(away_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Haal de waarde van de away op
+        cursor.execute("""
+            SELECT a.waarde 
+            FROM aways a
+            JOIN away_details ad ON a.id = ad.away_id
+            WHERE ad.id = %s
+        """, (away_id,))
+        away_waarde = cursor.fetchone()[0]
+
+        # Haal de geselecteerde leden op
+        cursor.execute("""
+            SELECT u.id 
+            FROM users u
+            JOIN user_aways ua ON u.id = ua.user_id
+            WHERE ua.away_id = %s AND ua.geselecteerd = TRUE
+        """, (away_id,))
+        geselecteerde_leden = cursor.fetchall()
+
+        # Werk de punten van de geselecteerde leden bij
+        for lid in geselecteerde_leden:
+            user_id = lid[0]
+            cursor.execute("""
+                UPDATE users 
+                SET puntenaantal = puntenaantal + %s 
+                WHERE id = %s
+            """, (away_waarde, user_id))
+
+        cursor.execute("DELETE FROM user_aways WHERE away_id = %s", (away_id,))
+
+        # Verwijder de lijst uit de database
+        cursor.execute("DELETE FROM away_details WHERE id = %s", (away_id,))
+
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for('away_lijsten'))
+    except Exception as e:
+        print(f"Fout bij het bevestigen van de lijst: {e}")
+        return "Er is een fout opgetreden bij het bevestigen van de lijst.", 500
 
 
 @app.route('/vervang_gebruiker/<int:away_id>/<int:verwijderde_user_id>')

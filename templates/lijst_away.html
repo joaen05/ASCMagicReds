@@ -189,9 +189,8 @@
                                                 </button>
                                             {% endif %}
 
-                                            <!-- Bevestigknop: Alleen beschikbaar na inschrijving einde -->
                                             {% if rij[1] < now %}
-                                                <a href="{{ url_for('bevestig_lijst')}}" class="btn btn-sm btn-success">
+                                                <a href="{{ url_for('bevestig_lijst', away_id=rij[5])}}" class="btn btn-sm btn-success" onclick="return confirmBevestiging('{{ rij[0] }}')">
                                                     <img src="{{ url_for('static', filename='vinkje.png') }}" alt="Vinkje" style="width: 25px; height: 25px;">
                                                 </a>
                                             {% else %}
@@ -298,6 +297,9 @@
                 document.getElementById('delete-form-' + awayId).submit();
             }
         }
+        function confirmBevestiging(lijstNaam) {
+        return confirm("Weet je zeker dat je lijst '" + lijstNaam + "' wilt bevestigen? Deze actie kan niet meer worden teruggedraaid.");
+    }
     </script>
 </body>
 </html>
