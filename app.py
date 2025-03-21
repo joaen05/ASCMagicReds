@@ -328,17 +328,19 @@ def add_user():
             'naam': request.form['naam'].title(),
             'email': request.form['email'],
             'one_account_id': int(request.form['one_account_id']),
-            'adres_straat': request.form['adres_straat'].title(),
+            'adres_straat': request.form['adres_straat'],
             'adres_nr': request.form['adres_nr'],
             'adres_postcode': int(request.form['adres_postcode']),
-            'adres_gemeente': request.form['adres_gemeente'].title(),
+            'adres_gemeente': request.form['adres_gemeente'],
             'rijksregisternummer': request.form['rijksregisternummer'],
             'abo_ja_nee': request.form['abo_ja_nee'],
             'telefoonnummer': request.form['telefoonnummer'],
             'puntenaantal': int(request.form['puntenaantal']),
         }
+
         if is_email_in_database(data['email']):
             return render_template('add_user.html', error="E-mailadres bestaat al!", **data)
+
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -382,10 +384,10 @@ def edit_member(id):
             naam = request.form['naam'].title()
             email = request.form['email']
             one_account_id = int(request.form['one_account_id'])
-            adres_straat = request.form['adres_straat'].title()
+            adres_straat = request.form['adres_straat']
             adres_nr = request.form['adres_nr']
             adres_postcode = int(request.form['adres_postcode'])
-            adres_gemeente = request.form['adres_gemeente'].title()
+            adres_gemeente = request.form['adres_gemeente']
             rijksregisternummer = request.form['rijksregisternummer']
             abo_ja_nee = request.form['abo_ja_nee']
             telefoonnummer = request.form['telefoonnummer']
