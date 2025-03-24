@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gebruiker Toevoegen</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
     <style>
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button {
@@ -16,6 +15,7 @@
         input[type="number"] {
             -moz-appearance: textfield;
         }
+
         body {
             background-color: #f8f9fa;
         }
@@ -42,302 +42,476 @@
         .form-actions .btn {
             min-width: 120px;
         }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .search-results {
+            position: absolute;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            z-index: 1000;
+            display: none;
+        }
+
+        .search-results div {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .search-results div:hover {
+            background-color: #f0f0f0;
+        }
+
+        .selected-display {
+            background-color: #f0f0f0;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            display: none;
+        }
+
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
             <h3 class="text-center mb-4">Voeg een nieuw lid toe</h3>
-            <form method="POST" id="userForm" onsubmit="return validateForm()">
+            <form method="POST" id="userForm">
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="voornaam" class="form-label">Voornaam:</label>
-                        <input type="text" class="form-control" id="voornaam" name="voornaam" value="{{ voornaam }}" required>
+                        <input type="text" class="form-control" id="voornaam" name="voornaam" required>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="naam" class="form-label">Achternaam:</label>
-                        <input type="text" class="form-control" id="naam" name="naam" value="{{ naam }}" required>
+                        <input type="text" class="form-control" id="naam" name="naam" required>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-8 mb-3">
                         <label for="email" class="form-label">E-mailadres:</label>
-                        <input type="email" class="form-control" id="email" name="email" value="{{ email }}" required>
+                        <input type="email" class="form-control" id="email" name="email" required>
                     </div>
                     <div class="col-md-4 mb-3">
                         <label for="one_account_id" class="form-label">One Account ID:</label>
-                        <input type="number" class="form-control" id="one_account_id" name="one_account_id" value="{{ one_account_id }}" min= "0" required>
+                        <input type="number" class="form-control" id="one_account_id" name="one_account_id" min="0" required>
                     </div>
                 </div>
 
                 <!-- Postcode en Gemeente -->
                 <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="postcodeDropdown" class="form-label">Postcode:</label>
-                        <input type="text" id="postcodeSearch" class="form-control" placeholder="Zoek postcode..." oninput="filterDropdown('postcodeDropdown', this.value)">
-                        <select id="postcodeDropdown" class="form-control" name="adres_postcode" onchange="fetchGemeentenByPostcode(this.value)" required>
-                            <option value="">Selecteer een postcode</option>
-                        </select>
+                    <div class="col-md-6 mb-3 search-container">
+                        <label for="postcodeSearch" class="form-label">Postcode:</label>
+                        <input type="text" id="postcodeSearch" class="form-control" placeholder="Zoek postcode..."
+                               oninput="searchPostcodes(this.value)"
+                               onfocus="showResults('postcodeResults')"
+                               onblur="setTimeout(() => hideResults('postcodeResults'), 200)">
+                        <div id="postcodeResults" class="search-results"></div>
+                        <input type="hidden" id="selectedPostcode" name="adres_postcode">
+                        <div id="selectedPostcodeDisplay" class="selected-display"></div>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="gemeenteDropdown" class="form-label">Gemeente:</label>
-                        <select id="gemeenteDropdown" class="form-control" name="adres_gemeente" disabled required>
-                            <option value="">Selecteer eerst een postcode</option>
+                        <select class="form-select" id="gemeenteDropdown" name="adres_gemeente" disabled required
+                                onchange="gemeenteSelected(this.value)">
+                            <option value="" selected disabled>Selecteer een gemeente</option>
                         </select>
+                        <div id="selectedGemeenteDisplay" class="selected-display"></div>
                     </div>
                 </div>
 
                 <!-- Straat en Huisnummer -->
                 <div class="row">
-                    <div class="col-md-8 mb-3">
-                        <label for="straatDropdown" class="form-label">Straat:</label>
-                        <input type="text" id="straatSearch" class="form-control" placeholder="Zoek straat..." oninput="filterDropdown('straatDropdown', this.value)">
-                        <select id="straatDropdown" class="form-control" name="adres_straat" disabled required>
-                            <option value="">Selecteer eerst een gemeente</option>
-                        </select>
+                    <div class="col-md-8 mb-3 search-container">
+                        <label for="straatSearch" class="form-label">Straat:</label>
+                        <input type="text" id="straatSearch" class="form-control" placeholder="Zoek straat..."
+                               oninput="searchStraten(this.value)"
+                               onfocus="showResults('straatResults')"
+                               onblur="setTimeout(() => hideResults('straatResults'), 200)"
+                               disabled>
+                        <div id="straatResults" class="search-results"></div>
+                        <input type="hidden" id="selectedStraat" name="adres_straat">
+                        <div id="selectedStraatDisplay" class="selected-display"></div>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="huisnummerDropdown" class="form-label">Huisnummer:</label>
-                        <input type="text" id="huisnummerSearch" class="form-control" placeholder="Zoek huisnummer..." oninput="filterDropdown('huisnummerDropdown', this.value)">
-                        <select id="huisnummerDropdown" class="form-control" name="adres_nr" disabled required>
-                            <option value="">Selecteer eerst een straat</option>
-                        </select>
+                    <div class="col-md-4 mb-3 search-container">
+                        <label for="huisnummerSearch" class="form-label">Huisnummer:</label>
+                        <input type="text" id="huisnummerSearch" class="form-control" placeholder="Zoek huisnummer..."
+                               oninput="searchHuisnummers(this.value)"
+                               onfocus="showResults('huisnummerResults')"
+                               onblur="setTimeout(() => hideResults('huisnummerResults'), 200)"
+                               disabled>
+                        <div id="huisnummerResults" class="search-results"></div>
+                        <input type="hidden" id="selectedHuisnummer" name="adres_nr">
+                        <div id="selectedHuisnummerDisplay" class="selected-display"></div>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <label for="rijksregisternummer" class="form-label">Rijksregisternummer:</label>
-                        <input type="text" class="form-control" id="rijksregisternummer" name="rijksregisternummer" value="{{ rijksregisternummer }}" required>
+                        <input type="text" class="form-control" id="rijksregisternummer" name="rijksregisternummer" required>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="abo_ja_nee" class="form-label">Abonnement:</label>
                         <select class="form-select" id="abo_ja_nee" name="abo_ja_nee" required>
-                            <option value="ja" {% if abo_ja_nee == 'ja' %}selected{% endif %}>Ja</option>
-                            <option value="nee" {% if abo_ja_nee == 'nee' %}selected{% endif %}>Nee</option>
+                            <option value="ja">Ja</option>
+                            <option value="nee">Nee</option>
                         </select>
                     </div>
                     <div class="col-md-5 mb-3">
                         <label for="telefoonnummer" class="form-label">Telefoonnummer:</label>
-                        <input type="text" class="form-control" id="telefoonnummer" name="telefoonnummer" value="{{ telefoonnummer }}" required>
+                        <input type="text" class="form-control" id="telefoonnummer" name="telefoonnummer" required>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <label for="puntenaantal" class="form-label">Puntenaantal:</label>
-                        <input type="number" class="form-control" id="puntenaantal" name="puntenaantal" value="{{ puntenaantal }}" min="0" required>
+                        <input type="number" class="form-control" id="puntenaantal" name="puntenaantal" min="0" required>
                     </div>
                 </div>
 
                 <div class="form-actions">
-                    <a href="{{ url_for('beheer_leden') }}" class="btn btn-secondary">Ga terug</a>
+                    <a href="#" class="btn btn-secondary">Ga terug</a>
                     <button type="submit" class="btn btn-primary">Toevoegen</button>
                 </div>
             </form>
-
-            {% if error %}
-            <div class="alert alert-danger mt-4" role="alert">
-                {{ error }}
-            </div>
-            {% endif %}
         </div>
     </div>
 
     <script>
-       // Functie om een dropdown bij te werken met opties
-function updateDropdown(dropdownId, items, defaultText) {
-    const dropdown = document.getElementById(dropdownId);
-    dropdown.innerHTML = `<option value="">${defaultText}</option>`;
+        // Globale variabelen
+        let currentPostcode = '';
+        let currentHoofdgemeente = '';
+        let allPostcodes = [];
+        let allGemeenten = [];
+        let allStraten = [];
+        let allHuisnummers = [];
 
-    if (items && items.length > 0) {
-        dropdown.innerHTML += items.map(item => `<option value="${item}">${item}</option>`).join("");
-    }
-}
+        // Initialiseer bij het laden van de pagina
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchPostcodes();
+        });
 
-// Functie om een dropdown te filteren op basis van zoektekst
-function filterDropdown(dropdownId, searchText) {
-    const dropdown = document.getElementById(dropdownId);
-    const options = dropdown.options;
-
-    for (let i = 0; i < options.length; i++) {
-        const option = options[i];
-        if (option.text.toLowerCase().includes(searchText.toLowerCase())) {
-            option.style.display = "";
-        } else {
-            option.style.display = "none";
-        }
-    }
-}
-
-// Haal alle postcodes op bij het laden van de pagina
-async function fetchPostcodes() {
-    const postcodeDropdown = document.getElementById("postcodeDropdown");
-    postcodeDropdown.innerHTML = "<option value=''>Laden...</option>";
-    postcodeDropdown.disabled = true;
-
-    let allPostcodes = [];
-    let nextUrl = "https://api.basisregisters.vlaanderen.be/v2/postinfo";
-
-    try {
-        while (nextUrl) {
-            const response = await fetch(nextUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP-fout: ${response.status}`);
+        // Toon/verberg resultaten
+        function showResults(elementId) {
+            const element = document.getElementById(elementId);
+            if (element && element.innerHTML.trim() !== '') {
+                element.style.display = 'block';
             }
-            const data = await response.json();
-            console.log("Vlaamse Overheid API-respons (postcodes):", data);
+        }
 
-            if (data.postInfoObjecten && data.postInfoObjecten.length > 0) {
-                const geldigePostcodes = data.postInfoObjecten.filter(postinfo => {
-                    return postinfo.postnamen.some(postnaam => postnaam.geografischeNaam.spelling === postnaam.geografischeNaam.spelling.toUpperCase());
-                }).map(postinfo => postinfo.identificator.objectId);
+        function hideResults(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.style.display = 'none';
+            }
+        }
 
-                allPostcodes = allPostcodes.concat(geldigePostcodes);
+        // Reset functies
+        function resetStraatFields() {
+            document.getElementById("straatSearch").value = "";
+            document.getElementById("selectedStraat").value = "";
+            document.getElementById("selectedStraatDisplay").textContent = "";
+            document.getElementById("selectedStraatDisplay").style.display = "none";
+            document.getElementById("huisnummerSearch").value = "";
+            document.getElementById("selectedHuisnummer").value = "";
+            document.getElementById("selectedHuisnummerDisplay").textContent = "";
+            document.getElementById("selectedHuisnummerDisplay").style.display = "none";
+            document.getElementById("huisnummerSearch").disabled = true;
+            allStraten = [];
+            allHuisnummers = [];
+        }
+
+        function resetHuisnummerField() {
+            document.getElementById("huisnummerSearch").value = "";
+            document.getElementById("selectedHuisnummer").value = "";
+            document.getElementById("selectedHuisnummerDisplay").textContent = "";
+            document.getElementById("selectedHuisnummerDisplay").style.display = "none";
+            allHuisnummers = [];
+        }
+
+        // Selecteer een waarde uit de zoekresultaten
+        function selectValue(inputId, displayId, value, displayValue, nextFieldId = null) {
+            const inputElement = document.getElementById(inputId);
+            const displayElement = document.getElementById(displayId);
+
+            if (!inputElement || !displayElement) {
+                console.error('Element niet gevonden:', !inputElement ? inputId : displayId);
+                return;
+            }
+
+            inputElement.value = value;
+            displayElement.textContent = displayValue;
+            displayElement.style.display = 'block';
+
+            // Reset downstream velden indien nodig
+            if (inputId === "selectedPostcode") {
+                document.getElementById("gemeenteDropdown").value = "";
+                document.getElementById("selectedGemeenteDisplay").textContent = "";
+                document.getElementById("selectedGemeenteDisplay").style.display = "none";
+                resetStraatFields();
+            } else if (inputId === "selectedStraat") {
+                resetHuisnummerField();
+            }
+
+            // Verberg de resultaten
+            const resultsContainerId = inputId.replace('selected', '').replace('Search', 'Results');
+            hideResults(resultsContainerId);
+
+            // Activeer het volgende veld indien opgegeven
+            if (nextFieldId) {
+                const nextField = document.getElementById(nextFieldId);
+                if (nextField) {
+                    nextField.disabled = false;
+                    nextField.focus();
+                }
+            }
+        }
+
+        // Haal alle postcodes op
+        async function fetchPostcodes() {
+            const postcodeSearch = document.getElementById("postcodeSearch");
+            postcodeSearch.placeholder = "Laden...";
+            postcodeSearch.disabled = true;
+
+            let nextUrl = "https://api.basisregisters.vlaanderen.be/v2/postinfo";
+
+            try {
+                while (nextUrl) {
+                    const response = await fetch(nextUrl);
+                    if (!response.ok) throw new Error(`HTTP-fout: ${response.status}`);
+                    const data = await response.json();
+
+                    if (data.postInfoObjecten?.length > 0) {
+                        const postcodes = data.postInfoObjecten.map(p => p.identificator.objectId);
+                        allPostcodes = [...new Set([...allPostcodes, ...postcodes])].sort((a, b) => a - b);
+                    }
+
+                    nextUrl = data.volgende;
+                }
+
+                postcodeSearch.placeholder = "Zoek postcode...";
+                postcodeSearch.disabled = false;
+            } catch (error) {
+                console.error("Fout bij het ophalen van postcodes:", error);
+                postcodeSearch.placeholder = "Fout bij laden";
+            }
+        }
+
+        // Zoek postcodes
+        function searchPostcodes(query) {
+            const resultsContainer = document.getElementById("postcodeResults");
+            if (!resultsContainer) return;
+
+            resultsContainer.innerHTML = '';
+
+            if (query.length < 1) {
+                hideResults('postcodeResults');
+                return;
+            }
+
+            const filtered = allPostcodes.filter(pc => pc.includes(query));
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = '<div>Geen resultaten gevonden</div>';
             } else {
-                throw new Error("Geen postcodes gevonden");
+                filtered.forEach(pc => {
+                    const div = document.createElement('div');
+                    div.textContent = pc;
+                    div.onclick = () => {
+                        selectValue('selectedPostcode', 'selectedPostcodeDisplay', pc, pc);
+                        fetchGemeentenByPostcode(pc);
+                    };
+                    resultsContainer.appendChild(div);
+                });
             }
 
-            nextUrl = data.volgende;
+            showResults('postcodeResults');
         }
 
-        const uniquePostcodes = [...new Set(allPostcodes)];
-        updateDropdown("postcodeDropdown", uniquePostcodes, "Selecteer een postcode");
-    } catch (error) {
-        console.error("Fout bij het ophalen van postcodes:", error);
-        updateDropdown("postcodeDropdown", [], "Fout bij laden");
-    } finally {
-        postcodeDropdown.disabled = false;
-    }
-}
+        // Haal gemeenten op voor een postcode
+        async function fetchGemeentenByPostcode(postcode) {
+            currentPostcode = postcode;
+            const gemeenteDropdown = document.getElementById("gemeenteDropdown");
+            gemeenteDropdown.disabled = true;
+            gemeenteDropdown.innerHTML = '<option value="" selected disabled>Laden...</option>';
 
-// Haal gemeenten op voor een geselecteerde postcode
-async function fetchGemeentenByPostcode(postcode) {
-    console.log("Geselecteerde postcode:", postcode); // Debugging
-    const gemeenteDropdown = document.getElementById("gemeenteDropdown");
-    gemeenteDropdown.innerHTML = "<option value=''>Laden...</option>";
-    gemeenteDropdown.disabled = true;
+            try {
+                const response = await fetch(`https://api.basisregisters.vlaanderen.be/v2/postinfo/${postcode}`);
+                if (!response.ok) throw new Error(`HTTP-fout: ${response.status}`);
+                const data = await response.json();
 
-    try {
-        const response = await fetch(`https://api.basisregisters.vlaanderen.be/v2/postinfo/${postcode}`);
-        if (!response.ok) {
-            throw new Error(`HTTP-fout: ${response.status}`);
+                // Bewaar hoofdgemeente apart (voor straatopzoekingen)
+                currentHoofdgemeente = data.gemeente?.gemeentenaam?.geografischeNaam?.spelling || '';
+
+                // Gebruik alleen de postnamen voor dropdown
+                const gemeenten = data.postnamen?.map(p => p.geografischeNaam.spelling) || [];
+
+                // Vul dropdown
+                gemeenteDropdown.innerHTML = '<option value="" selected disabled>Selecteer een gemeente</option>';
+
+                gemeenten.sort().forEach(gemeente => {
+                    const option = document.createElement('option');
+                    option.value = gemeente;
+                    option.textContent = gemeente;
+                    gemeenteDropdown.appendChild(option);
+                });
+
+                gemeenteDropdown.disabled = false;
+                document.getElementById("straatSearch").disabled = gemeenten.length === 0;
+
+            } catch (error) {
+                console.error("Fout bij het ophalen van gemeenten:", error);
+                gemeenteDropdown.innerHTML = '<option value="" selected disabled>Fout bij laden</option>';
+            }
         }
-        const data = await response.json();
-        console.log("API-respons voor gemeenten:", data); // Debugging
 
-        if (data.postnamen && data.postnamen.length > 0) {
-            const gemeenten = data.postnamen
-                .filter(postnaam => postnaam.geografischeNaam.spelling === postnaam.geografischeNaam.spelling.toUpperCase())
-                .map(postnaam => postnaam.geografischeNaam.spelling);
+        // Gemeente selectie handler
+        function gemeenteSelected(gemeente) {
+            if (gemeente) {
+                document.getElementById("selectedGemeenteDisplay").textContent = gemeente;
+                document.getElementById("selectedGemeenteDisplay").style.display = "block";
+                resetStraatFields();
+                document.getElementById("straatSearch").disabled = false;
+                fetchStratenByGemeente();
+            }
+        }
 
-            if (gemeenten.length > 0) {
-                updateDropdown("gemeenteDropdown", gemeenten, "Selecteer een gemeente");
-                gemeenteDropdown.disabled = false; // Zorg ervoor dat de dropdown wordt ingeschakeld
+        // Haal straten op voor de hoofdgemeente
+        async function fetchStratenByGemeente() {
+            const straatSearch = document.getElementById("straatSearch");
+            straatSearch.placeholder = "Laden...";
+            straatSearch.disabled = true;
+            allStraten = [];
+
+            try {
+                let nextUrl = `https://api.basisregisters.vlaanderen.be/v2/straatnamen?gemeentenaam=${encodeURIComponent(currentHoofdgemeente)}`;
+
+                while (nextUrl) {
+                    const response = await fetch(nextUrl);
+                    if (!response.ok) throw new Error(`HTTP-fout: ${response.status}`);
+                    const data = await response.json();
+
+                    if (data.straatnamen?.length > 0) {
+                        const straten = data.straatnamen.map(s => s.straatnaam.geografischeNaam.spelling);
+                        allStraten = [...new Set([...allStraten, ...straten])].sort();
+                    }
+
+                    nextUrl = data.volgende;
+                }
+
+                straatSearch.placeholder = "Zoek straat...";
+                straatSearch.disabled = false;
+                straatSearch.focus();
+            } catch (error) {
+                console.error("Fout bij het ophalen van straten:", error);
+                straatSearch.placeholder = "Fout bij laden";
+            }
+        }
+
+        // Zoek straten
+        function searchStraten(query) {
+            const resultsContainer = document.getElementById("straatResults");
+            if (!resultsContainer) return;
+
+            resultsContainer.innerHTML = '';
+
+            if (query.length < 1) {
+                hideResults('straatResults');
+                return;
+            }
+
+            const filtered = allStraten.filter(s => s.toLowerCase().includes(query.toLowerCase()));
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = '<div>Geen resultaten gevonden</div>';
             } else {
-                throw new Error("Geen geldige gemeenten gevonden");
-            }
-        } else {
-            throw new Error("Geen gemeenten gevonden");
-        }
-    } catch (error) {
-        console.error("Fout bij het ophalen van gemeenten:", error);
-        updateDropdown("gemeenteDropdown", [], "Geen geldige gemeenten");
-    }
-}
-
-// Haal straten op voor een geselecteerde gemeente
-async function fetchStratenByGemeente(gemeente) {
-    console.log("Geselecteerde gemeente:", gemeente); // Debugging
-    const straatDropdown = document.getElementById("straatDropdown");
-    straatDropdown.innerHTML = "<option value=''>Laden...</option>";
-    straatDropdown.disabled = true;
-
-    let allStraten = [];
-    let nextUrl = `https://api.basisregisters.vlaanderen.be/v2/straatnamen?gemeentenaam=${encodeURIComponent(gemeente)}`;
-
-    try {
-        while (nextUrl) {
-            const response = await fetch(nextUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP-fout: ${response.status}`);
-            }
-            const data = await response.json();
-            console.log("API-respons voor straten:", data); // Debugging
-
-            if (data.straatnamen && data.straatnamen.length > 0) {
-                const straten = data.straatnamen.map(item => item.straatnaam.geografischeNaam.spelling);
-                allStraten = allStraten.concat(straten);
+                filtered.forEach(s => {
+                    const div = document.createElement('div');
+                    div.textContent = s;
+                    div.onclick = () => {
+                        selectValue('selectedStraat', 'selectedStraatDisplay', s, s, 'huisnummerSearch');
+                        fetchHuisnummersByStraat(s);
+                    };
+                    resultsContainer.appendChild(div);
+                });
             }
 
-            nextUrl = data.volgende;
+            showResults('straatResults');
         }
 
-        const uniqueStraten = [...new Set(allStraten)];
-        updateDropdown("straatDropdown", uniqueStraten, "Selecteer een straat");
-        straatDropdown.disabled = false; // Zorg ervoor dat de dropdown wordt ingeschakeld
-    } catch (error) {
-        console.error("Fout bij het ophalen van straten:", error);
-        updateDropdown("straatDropdown", [], "Fout bij laden");
-    }
-}
+        // Haal huisnummers op voor een straat
+        async function fetchHuisnummersByStraat(straat) {
+            const huisnummerSearch = document.getElementById("huisnummerSearch");
+            huisnummerSearch.placeholder = "Laden...";
+            huisnummerSearch.disabled = true;
+            allHuisnummers = [];
 
-// Haal huisnummers op voor een geselecteerde straat
-async function fetchHuisnummersByStraat(straat) {
-    console.log("Geselecteerde straat:", straat); // Debugging
-    const huisnummerDropdown = document.getElementById("huisnummerDropdown");
-    huisnummerDropdown.innerHTML = "<option value=''>Laden...</option>";
-    huisnummerDropdown.disabled = true;
+            try {
+                const response = await fetch(`https://api.basisregisters.vlaanderen.be/v2/adressen?straatnaam=${encodeURIComponent(straat)}&postcode=${currentPostcode}`);
+                if (!response.ok) throw new Error(`HTTP-fout: ${response.status}`);
+                const data = await response.json();
 
-    let allHuisnummers = [];
-    let nextUrl = `https://api.basisregisters.vlaanderen.be/v2/adressen?straatnaam=${encodeURIComponent(straat)}`;
+                if (data.adressen?.length > 0) {
+                    allHuisnummers = data.adressen.map(a => a.huisnummer).filter((v, i, a) => a.indexOf(v) === i).sort();
+                }
 
-    try {
-        while (nextUrl) {
-            const response = await fetch(nextUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP-fout: ${response.status}`);
+                huisnummerSearch.placeholder = "Zoek huisnummer...";
+                huisnummerSearch.disabled = false;
+                huisnummerSearch.focus();
+            } catch (error) {
+                console.error("Fout bij het ophalen van huisnummers:", error);
+                huisnummerSearch.placeholder = "Fout bij laden";
             }
-            const data = await response.json();
-            console.log("API-respons voor huisnummers:", data); // Debugging
-
-            if (data.adressen && data.adressen.length > 0) {
-                const huisnummers = data.adressen.map(item => item.huisnummer);
-                allHuisnummers = allHuisnummers.concat(huisnummers);
-            }
-
-            nextUrl = data.volgende;
         }
 
-        const sortedHuisnummers = allHuisnummers.sort((a, b) => a - b);
-        const uniqueHuisnummers = [...new Set(sortedHuisnummers)];
-        updateDropdown("huisnummerDropdown", uniqueHuisnummers, "Selecteer een huisnummer");
-        huisnummerDropdown.disabled = false; // Zorg ervoor dat de dropdown wordt ingeschakeld
-    } catch (error) {
-        console.error("Fout bij het ophalen van huisnummers:", error);
-        updateDropdown("huisnummerDropdown", [], "Fout bij laden");
-    }
-}
+        // Zoek huisnummers
+        function searchHuisnummers(query) {
+            const resultsContainer = document.getElementById("huisnummerResults");
+            if (!resultsContainer) return;
 
-// Event listener voor gemeente-dropdown
-document.getElementById("gemeenteDropdown").addEventListener("change", function () {
-    const geselecteerdeGemeente = this.value;
-    if (geselecteerdeGemeente) {
-        fetchStratenByGemeente(geselecteerdeGemeente);
-    }
-});
+            resultsContainer.innerHTML = '';
 
-// Event listener voor straat-dropdown
-document.getElementById("straatDropdown").addEventListener("change", function () {
-    const geselecteerdeStraat = this.value;
-    if (geselecteerdeStraat) {
-        fetchHuisnummersByStraat(geselecteerdeStraat);
-    }
-});
+            if (query.length < 1) {
+                hideResults('huisnummerResults');
+                return;
+            }
 
-// Initialiseer de postcode dropdown bij het laden van de pagina
-fetchPostcodes();
+            const filtered = allHuisnummers.filter(hn => hn.toString().includes(query));
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = '<div>Geen resultaten gevonden</div>';
+            } else {
+                filtered.forEach(hn => {
+                    const div = document.createElement('div');
+                    div.textContent = hn;
+                    div.onclick = () => {
+                        selectValue('selectedHuisnummer', 'selectedHuisnummerDisplay', hn, hn);
+                    };
+                    resultsContainer.appendChild(div);
+                });
+            }
+
+            showResults('huisnummerResults');
+        }
     </script>
 </body>
 </html>
