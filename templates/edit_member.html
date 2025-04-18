@@ -99,14 +99,17 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="voornaam" class="form-label">Voornaam:</label>
-                        <input type="text" class="form-control" id="voornaam" name="voornaam" value="{{ member['voornaam'] }}" required>
+                        <input type="text" class="form-control" id="voornaam" name="voornaam" value="{{ member['voornaam'] }}"
+                               pattern="[A-Za-zÀ-ÿ\s]+" title="Enkel letters zijn toegestaan" required
+                               onkeypress="return /[A-Za-zÀ-ÿ\s]/.test(event.key)">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="naam" class="form-label">Achternaam:</label>
-                        <input type="text" class="form-control" id="naam" name="naam" value="{{ member['naam'] }}" required>
+                        <input type="text" class="form-control" id="naam" name="naam" value="{{ member['naam'] }}"
+                               pattern="[A-Za-zÀ-ÿ\s]+" title="Enkel letters zijn toegestaan" required
+                               onkeypress="return /[A-Za-zÀ-ÿ\s]/.test(event.key)">
                     </div>
                 </div>
-
                 <div class="row">
                     <div class="col-md-8 mb-3">
                         <label for="email" class="form-label">E-mailadres:</label>
@@ -114,7 +117,8 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <label for="one_account_id" class="form-label">One Account ID:</label>
-                        <input type="number" class="form-control" id="one_account_id" name="one_account_id" value="{{ member['one_account_id'] }}" min="0" required>
+                        <input type="number" class="form-control" id="one_account_id" name="one_account_id" min="0" value="{{ member['one_account_id'] }}" required
+                               onkeypress="return event.charCode >= 48 && event.charCode <= 57">
                     </div>
                 </div>
 
@@ -123,6 +127,8 @@
                     <div class="col-md-6 mb-3 search-container">
                         <label for="postcodeSearch" class="form-label">Postcode:</label>
                         <input type="text" id="postcodeSearch" class="form-control" placeholder="Zoek postcode..."
+                               pattern="\d*" title="Enkel cijfers zijn toegestaan"
+                               onkeypress="return event.charCode >= 48 && event.charCode <= 57"
                                oninput="searchPostcodes(this.value)"
                                onfocus="showResults('postcodeResults')"
                                onblur="setTimeout(() => hideResults('postcodeResults'), 200)"
@@ -146,6 +152,8 @@
                     <div class="col-md-8 mb-3 search-container">
                         <label for="straatSearch" class="form-label">Straat:</label>
                         <input type="text" id="straatSearch" class="form-control" placeholder="Zoek straat..."
+                               pattern="[A-Za-zÀ-ÿ\s]+" title="Enkel letters zijn toegestaan"
+                               onkeypress="return /[A-Za-zÀ-ÿ\s]/.test(event.key)"
                                oninput="searchStraten(this.value)"
                                onfocus="showResults('straatResults')"
                                onblur="setTimeout(() => hideResults('straatResults'), 200)"
@@ -157,6 +165,8 @@
                     <div class="col-md-4 mb-3 search-container">
                         <label for="huisnummerSearch" class="form-label">Huisnummer:</label>
                         <input type="text" id="huisnummerSearch" class="form-control" placeholder="Zoek huisnummer..."
+                               pattern="[A-Za-z0-9]+" title="Enkel letters en cijfers zijn toegestaan"
+                               onkeypress="return /[A-Za-z0-9]/.test(event.key)"
                                oninput="searchHuisnummers(this.value)"
                                onfocus="showResults('huisnummerResults')"
                                onblur="setTimeout(() => hideResults('huisnummerResults'), 200)"
@@ -170,7 +180,9 @@
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <label for="rijksregisternummer" class="form-label">Rijksregisternummer:</label>
-                        <input type="text" class="form-control" id="rijksregisternummer" name="rijksregisternummer" value="{{ member['rijksregisternummer'] }}" required>
+                        <input type="text" class="form-control" id="rijksregisternummer" name="rijksregisternummer" value="{{ member['rijksregisternummer'] }}"
+                               pattern="[\d-]+" title="Enkel cijfers en streepjes zijn toegestaan" required
+                               onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode === 45">
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="abo_ja_nee" class="form-label">Abonnement:</label>
@@ -181,7 +193,9 @@
                     </div>
                     <div class="col-md-5 mb-3">
                         <label for="telefoonnummer" class="form-label">Telefoonnummer:</label>
-                        <input type="text" class="form-control" id="telefoonnummer" name="telefoonnummer" value="{{ member['telefoonnummer'] }}" required>
+                        <input type="text" class="form-control" id="telefoonnummer" name="telefoonnummer" value="{{ member['telefoonnummer'] }}"
+                               pattern="[\d+]+" title="Enkel cijfers en + teken zijn toegestaan" required
+                               onkeypress="return (event.charCode >= 48 && event.charCode <= 57) || event.charCode === 43">
                     </div>
                 </div>
 
