@@ -24,7 +24,7 @@ from io import BytesIO
 load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL')
 ADMIN_EMAIL = "jonahaertssen05@gmail.com"
-ADMIN_EMAIL2 = "denis.bienstman@gmail.com"
+ADMIN_EMAIL2 = "denis.bienstman@hotmail.com"
 ADMIN_EMAIL3 = "sandy.de.cock@hotmail.com"
 
 
