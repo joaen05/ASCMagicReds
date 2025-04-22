@@ -24,6 +24,7 @@ from io import BytesIO
 load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL')
 ADMIN_EMAIL = "jonahaertssen05@gmail.com"
+ADMIN_EMAIL2 = "ellenvandeput77@gmail.com"
 
 
 try:
@@ -252,7 +253,7 @@ def callback():
         return redirect(url_for("no_access"))
 
     # Check admin status
-    if user_email == ADMIN_EMAIL:
+    if user_email == ADMIN_EMAIL or user_email == ADMIN_EMAIL2:
         session["is_admin"] = True
     else:
         session["is_admin"] = False
