@@ -6,7 +6,7 @@
     <title>Bewerken Away Inschrijving</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet"/>
     <style>
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button {
@@ -33,136 +33,154 @@
             .form-row {
                 margin-bottom: 10px;
             }
-             .form-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-        }
+
+            .form-actions {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Bewerken Away Inschrijving</h2>
-        <form method="POST" id="inschrijvingForm">
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label for="away_id">Naam van de Away:</label>
-                    <select class="form-control" id="away_id" name="away_id" required>
-                        {% for away in available_aways %}
-                            <option value="{{ away[0] }}" {% if away[0]|int == away_details['away_id']|int %}selected{% endif %}>
-                                {{ away[1] }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group col-md-6">
-                    <label for="aantal_kaarten">Aantal kaarten:</label>
-                    <input type="number" class="form-control" id="aantal_kaarten" name="aantal_kaarten" value="{{ away_details['aantal_kaarten'] }}" required>
-                </div>
+<div class="container">
+    <h2>Bewerken Away Inschrijving</h2>
+    <form method="POST" id="inschrijvingForm">
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="away_id">Naam van de Away:</label>
+                <select class="form-control" id="away_id" name="away_id" required>
+                    {% for away in available_aways %}
+                    <option value="{{ away[0] }}" {% if away[0]|int== away_details[
+                    'away_id']|int %}selected{% endif %}>
+                    {{ away[1] }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-
-            <div class="form-row">
-                <div class="form-group col-md-12">
-                    <label for="beschrijving">Beschrijving:</label>
-                    <textarea class="form-control" id="beschrijving" name="beschrijving" rows="7" required>{{ away_details['beschrijving'] }}</textarea>
-                </div>
+            <div class="form-group col-md-6">
+                <label for="aantal_kaarten">Aantal kaarten:</label>
+                <input type="number" class="form-control" id="aantal_kaarten" name="aantal_kaarten"
+                       value="{{ away_details['aantal_kaarten'] }}" required>
             </div>
+        </div>
 
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label for="away_datum">Datum van de match:</label>
-                    <input type="datetime-local" class="form-control" id="away_datum" name="away_datum" value="{{ away_details['away_datum'] }}" required>
-                </div>
-                <div class="form-group col-md-6">
-                    <label for="inschrijving_einde">Inschrijving sluit op:</label>
-                    <input type="datetime-local" class="form-control" id="inschrijving_einde" name="inschrijving_einde" value="{{ away_details['inschrijving_einde'] }}" required>
-                </div>
+        <div class="form-row">
+            <div class="form-group col-md-12">
+                <label for="beschrijving">Beschrijving:</label>
+                <textarea class="form-control" id="beschrijving" name="beschrijving" rows="7" required>{{ away_details['beschrijving'] }}</textarea>
             </div>
+        </div>
 
-            <div class="form-actions">
-                <a href="{{ url_for('inschrijven_away', page=current_page) }}" class="btn btn-secondary">Ga terug</a>
-                <button type="submit" class="btn btn-primary">Inschrijving Bijwerken</button>
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="away_datum">Datum van de match:</label>
+                <input type="datetime-local" class="form-control" id="away_datum" name="away_datum"
+                       value="{{ away_details['away_datum'] }}" required>
             </div>
-        </form>
-    </div>
+            <div class="form-group col-md-6">
+                <label for="inschrijving_einde">Inschrijving sluit op:</label>
+                <input type="datetime-local" class="form-control" id="inschrijving_einde" name="inschrijving_einde"
+                       value="{{ away_details['inschrijving_einde'] }}" required>
+            </div>
+        </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#away_id').select2();
+        <div class="form-actions">
+            <a href="{{ url_for('inschrijven_away', page=current_page) }}" class="btn btn-secondary">Ga terug</a>
+            <button type="submit" class="btn btn-primary">Inschrijving Bijwerken</button>
+        </div>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#away_id').select2();
+
+        // Beperk input in select2 zoekveld tot alleen letters (a-z en A-Z)
+        $('#away_id').on('select2:open', function () {
+            setTimeout(() => {
+                let searchField = document.querySelector('.select2-container--open .select2-search__field');
+                if (searchField) {
+                    searchField.addEventListener('input', function () {
+                        this.value = this.value.replace(/[^a-zA-ZÀ-ÿ\s]/g, '');
+                    });
+                }
+            }, 0);
+        });
+    });
+
+    function formatDateToInput(datetimeStr) {
+        if (!datetimeStr) return "";
+        return datetimeStr.replace(" ", "T");
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        let inschrijvingEinde = document.getElementById("inschrijving_einde");
+        let awayDatum = document.getElementById("away_datum");
+
+        function formatDateToLocal(datetime) {
+            let year = datetime.getFullYear();
+            let month = String(datetime.getMonth() + 1).padStart(2, "0");
+            let day = String(datetime.getDate()).padStart(2, "0");
+            let hours = String(datetime.getHours()).padStart(2, "0");
+            let minutes = String(datetime.getMinutes()).padStart(2, "0");
+
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        function setMinValues() {
+            let now = new Date();
+            inschrijvingEinde.min = formatDateToLocal(now);
+            awayDatum.min = formatDateToLocal(now);
+        }
+
+        function updateMatchMin() {
+            if (inschrijvingEinde.value) {
+                let sluitMoment = new Date(inschrijvingEinde.value);
+                sluitMoment.setMinutes(sluitMoment.getMinutes() + 1);
+                awayDatum.min = formatDateToLocal(sluitMoment);
+            }
+        }
+
+        function updateInschrijvingMax() {
+            if (awayDatum.value) {
+                let matchMoment = new Date(awayDatum.value);
+                matchMoment.setMinutes(matchMoment.getMinutes() - 1);
+                inschrijvingEinde.max = formatDateToLocal(matchMoment);
+            }
+        }
+
+        function blockInvalidTimes() {
+            let inschrijvingTime = new Date(inschrijvingEinde.value);
+            let matchTime = new Date(awayDatum.value);
+
+            if (awayDatum.value) {
+                inschrijvingEinde.max = formatDateToLocal(new Date(matchTime.getTime() - 60000));
+            }
+
+            if (inschrijvingEinde.value) {
+                awayDatum.min = formatDateToLocal(new Date(inschrijvingTime.getTime() + 60000));
+            }
+        }
+
+        setMinValues();
+        inschrijvingEinde.addEventListener("change", () => {
+            updateMatchMin();
+            blockInvalidTimes();
         });
 
-        function formatDateToInput(datetimeStr) {
-            if (!datetimeStr) return "";
-            return datetimeStr.replace(" ", "T");
-        }
-        document.addEventListener("DOMContentLoaded", function () {
-    let inschrijvingEinde = document.getElementById("inschrijving_einde");
-    let awayDatum = document.getElementById("away_datum");
-
-    function formatDateToLocal(datetime) {
-        let year = datetime.getFullYear();
-        let month = String(datetime.getMonth() + 1).padStart(2, "0");
-        let day = String(datetime.getDate()).padStart(2, "0");
-        let hours = String(datetime.getHours()).padStart(2, "0");
-        let minutes = String(datetime.getMinutes()).padStart(2, "0");
-
-        return `${year}-${month}-${day}T${hours}:${minutes}`;
-    }
-
-    function setMinValues() {
-        let now = new Date();
-        inschrijvingEinde.min = formatDateToLocal(now);
-        awayDatum.min = formatDateToLocal(now);
-    }
-
-    function updateMatchMin() {
-        if (inschrijvingEinde.value) {
-            let sluitMoment = new Date(inschrijvingEinde.value);
-            sluitMoment.setMinutes(sluitMoment.getMinutes() + 1);
-            awayDatum.min = formatDateToLocal(sluitMoment);
-        }
-    }
-
-    function updateInschrijvingMax() {
-        if (awayDatum.value) {
-            let matchMoment = new Date(awayDatum.value);
-            matchMoment.setMinutes(matchMoment.getMinutes() - 1);
-            inschrijvingEinde.max = formatDateToLocal(matchMoment);
-        }
-    }
-
-    function blockInvalidTimes() {
-        let inschrijvingTime = new Date(inschrijvingEinde.value);
-        let matchTime = new Date(awayDatum.value);
-
-        if (awayDatum.value) {
-            inschrijvingEinde.max = formatDateToLocal(new Date(matchTime.getTime() - 60000));
-        }
-
-        if (inschrijvingEinde.value) {
-            awayDatum.min = formatDateToLocal(new Date(inschrijvingTime.getTime() + 60000));
-        }
-    }
-
-    setMinValues();
-    inschrijvingEinde.addEventListener("change", () => {
-        updateMatchMin();
-        blockInvalidTimes();
+        awayDatum.addEventListener("change", () => {
+            updateInschrijvingMax();
+            blockInvalidTimes();
+        });
     });
 
-    awayDatum.addEventListener("change", () => {
-        updateInschrijvingMax();
-        blockInvalidTimes();
-    });
-});
 
-
-        document.getElementById('away_datum').value = formatDateToInput("{{ away_details['away_datum'] }}");
-        document.getElementById('inschrijving_einde').value = formatDateToInput("{{ away_details['inschrijving_einde'] }}");
-    </script>
+    document.getElementById('away_datum').value = formatDateToInput("{{ away_details['away_datum'] }}");
+    document.getElementById('inschrijving_einde').value = formatDateToInput("{{ away_details['inschrijving_einde'] }}");
+</script>
 </body>
 </html>

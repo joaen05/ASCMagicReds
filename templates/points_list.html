@@ -54,6 +54,14 @@
             }
         }
     }
+    document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById("searchInput");
+
+    input.addEventListener('input', function () {
+        this.value = this.value.replace(/[^a-zA-ZÀ-ÿ]/g, '');
+    });
+});
+
 </script>
 
 <style>

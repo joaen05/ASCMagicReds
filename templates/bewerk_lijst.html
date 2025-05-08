@@ -67,29 +67,34 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-    const aantalGeselecteerde = {{ aantal_geselecteerde_leden }};
-    const aantalKaarten = {{ aantal_kaarten }};
-    const ledenInWacht = {{ leden_in_wacht }}; // Voeg deze variabele toe
-    const toevoegenLidLink = document.getElementById("ToevoegenLid");
+        const aantalGeselecteerde = {{ aantal_geselecteerde_leden }};
+        const aantalKaarten = {{ aantal_kaarten }};
+        const ledenInWacht = {{ leden_in_wacht }};
+        const toevoegenLidLink = document.getElementById("ToevoegenLid");
 
-    if (aantalGeselecteerde >= aantalKaarten) {
-        toevoegenLidLink.removeAttribute('href');
-        toevoegenLidLink.style.pointerEvents = 'none';
-        toevoegenLidLink.style.opacity = '0.5';
-        toevoegenLidLink.classList.add('disabled');
-    }
+        if (aantalGeselecteerde >= aantalKaarten) {
+            toevoegenLidLink.removeAttribute('href');
+            toevoegenLidLink.style.pointerEvents = 'none';
+            toevoegenLidLink.style.opacity = '0.5';
+            toevoegenLidLink.classList.add('disabled');
+        }
 
-    // Knop "Volgend lid" uitschakelen als er geen leden in de wacht staan
-    if (ledenInWacht === 0) {
-        document.querySelectorAll('[id^="volgendLidLink"]').forEach(function (knop) {
-            knop.removeAttribute('href');
-            knop.style.pointerEvents = 'none';
-            knop.style.opacity = '0.5';
-            knop.classList.add('disabled');
+        if (ledenInWacht === 0) {
+            document.querySelectorAll('[id^="volgendLidLink"]').forEach(function (knop) {
+                knop.removeAttribute('href');
+                knop.style.pointerEvents = 'none';
+                knop.style.opacity = '0.5';
+                knop.classList.add('disabled');
+            });
+        }
+
+        // ❗ Alleen letters a-z/A-Z toestaan in zoekveld
+        const searchInput = document.getElementById("searchInput");
+        searchInput.addEventListener("input", function () {
+            this.value = this.value.replace(/[^a-zA-Z]/g, '');
+            filterLeden(); // opnieuw filteren na opgeschoonde input
         });
-    }
-});
-
+    });
 
     function filterLeden() {
         var input, filter, table, tr, td, i, txtValue;
@@ -111,6 +116,7 @@
         }
     }
 </script>
+
 
 <style>
     html, body {
