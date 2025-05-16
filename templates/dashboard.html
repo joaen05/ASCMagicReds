@@ -3,8 +3,59 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
+<style>
+  .banner {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
 
-<h1>Welkom, {{ get_naam() }}!</h1>
-<p>Dit is je dashboard.</p>
+  .banner img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .dashboard-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    gap: 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .welcome-message {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .info-text {
+    text-align: center;
+    font-size: 1rem;
+    color: #666;
+  }
+
+  @media (max-width: 600px) {
+    .welcome-message {
+      font-size: 1.2rem;
+    }
+
+    .info-text {
+      font-size: 0.95rem;
+    }
+  }
+</style>
+
+<div class="dashboard-container">
+  <div class="banner">
+    <img src="{{ url_for('static', filename='Logo-startpage.jpeg') }}" alt="Magic Reds Banner">
+  </div>
+
+  <div class="welcome-message">Welkom, {{ get_naam() }}!</div>
+<div class="info-text">Welkom op het dashboard van ASC Magic Reds. Hier blijf je op de hoogte van alle inschrijvingen voor de uitwedstrijden!</div>
+</div>
 
 {% endblock %}
