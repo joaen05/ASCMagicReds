@@ -2,7 +2,6 @@ from flask import Flask, redirect, session, url_for, render_template, request, s
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 import psycopg2
-from urllib.parse import urlparse
 import os
 from functools import wraps
 from babel.dates import format_datetime, pytz
@@ -17,23 +16,20 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from io import BytesIO
+from models import Query
 
 
 
 # Laad omgevingsvariabelen uit .env-bestand
 load_dotenv()
-DATABASE_URL = os.getenv('DATABASE_URL')
 ADMIN_EMAIL = "jonahaertssen05@gmail.com"
 ADMIN_EMAIL2 = "denis.bienstman@hotmail.com"
 ADMIN_EMAIL3 = "sandy.de.cock@hotmail.com"
 
+# Tijdzone instellen (bijvoorbeeld 'Europe/Brussels')
+TIMEZONE = pytz.timezone('Europe/Brussels')
 
-try:
-    # Probeer verbinding te maken met de database
-    conn = psycopg2.connect(DATABASE_URL)
-    print("Database connected successfully")
-except Exception as e:
-    print(f"Database connection error: {e}")
+
 app = Flask(__name__)
 app.secret_key = os.getenv('APP_SECRET_KEY')  # Gebruik APP_SECRET_KEY uit .env
 
@@ -59,31 +55,13 @@ def keep_alive():
         time.sleep(300)  # Wacht 5 minuten tussen elke ping
 
 
-# Functie om verbinding te maken met de PostgreSQL-database
-def get_db_connection():
-    result = urlparse(DATABASE_URL)
-    conn = psycopg2.connect(
-        host=result.hostname,
-        port=result.port,
-        database=result.path[1:],  # Verwijder de eerste '/'
-        user=result.username,
-        password=result.password
-    )
-    return conn
-
 def get_naam():
     email = session.get('user', {}).get('userinfo', {}).get('email')
     if not email:
         return "Onbekende gebruiker"
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT concat(voornaam, ' ', naam) FROM users WHERE email = %s", (email,))
-        result = cursor.fetchone()
-        conn.close()
-
-        return result[0] if result else "Onbekende gebruiker"
+        return Query.getFullname(email)
     except psycopg2.Error:
         return "Databasefout"
 
@@ -94,22 +72,12 @@ def inject_get_naam():
 # Hulpfunctie om toegang te controleren
 def is_email_in_database(email):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM users WHERE email = %s", (email,))
-        result = cursor.fetchone()
-        conn.close()
-        return result[0] > 0
+       return Query.is_email_in_db(email)
     except psycopg2.Error:
         return False
 
-def is_naam_in_database(naam):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT 1 FROM aways WHERE naam = %s", (naam,))
-    result = cursor.fetchone()
-    conn.close()
-    return result is not None
+def is_naam_in_database(name):
+    Query.is_name_in_db(name)
 
 def is_authorized():
     user_info = session.get("user")
@@ -136,93 +104,6 @@ def login_required(f):
             return redirect(url_for("no_access"))
         return f(*args, **kwargs)
     return decorated_function
-
-
-def update_geselecteerde_gebruikers(away_id):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Haal het aantal beschikbare kaarten op voor deze away
-        cursor.execute("SELECT aantal_kaarten FROM away_details WHERE id = %s", (away_id,))
-        aantal_kaarten = cursor.fetchone()[0]
-
-        # Selecteer alle ingeschreven gebruikers voor deze away, gesorteerd op punten (hoogste eerst)
-        cursor.execute('''
-            SELECT ua.user_id, u.puntenaantal
-            FROM user_aways ua
-            JOIN users u ON ua.user_id = u.id
-            WHERE ua.away_id = %s
-            ORDER BY u.puntenaantal DESC
-        ''', (away_id,))
-
-        ingeschreven_gebruikers = cursor.fetchall()
-
-        # Bepaal de top X gebruikers op basis van het aantal kaarten
-        top_gebruikers = [row[0] for row in ingeschreven_gebruikers[:aantal_kaarten]]
-
-        # Als er geen gebruikers zijn, gebruik dan een lege tuple om SQL-syntaxfouten te voorkomen
-        top_gebruikers_tuple = tuple(top_gebruikers) if top_gebruikers else (None,)
-
-        # Update de `geselecteerd` kolom voor de top X gebruikers
-        cursor.execute('''
-            UPDATE user_aways
-            SET geselecteerd = TRUE
-            WHERE away_id = %s AND user_id IN %s
-        ''', (away_id, top_gebruikers_tuple))
-
-        # Zet `geselecteerd` op FALSE voor de rest van de gebruikers
-        cursor.execute('''
-            UPDATE user_aways
-            SET geselecteerd = FALSE
-            WHERE away_id = %s AND user_id NOT IN %s
-        ''', (away_id, top_gebruikers_tuple))
-
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Fout bij het bijwerken van geselecteerde gebruikers: {e}")
-
-
-def vervang_geselecteerde_gebruiker(away_id, verwijderde_user_id):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Haal de gebruiker op die de meeste punten heeft en nog niet geselecteerd is
-        cursor.execute('''
-            SELECT ua.user_id
-            FROM user_aways ua
-            JOIN users u ON ua.user_id = u.id
-            WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
-            ORDER BY u.puntenaantal DESC
-            LIMIT 1
-        ''', (away_id,))
-
-        nieuwe_gebruiker = cursor.fetchone()
-
-        if nieuwe_gebruiker:
-            nieuwe_user_id = nieuwe_gebruiker[0]
-
-            # Update de database: verwijder oude gebruiker en voeg de nieuwe toe
-            cursor.execute('''
-                UPDATE user_aways
-                SET geselecteerd = FALSE
-                WHERE away_id = %s AND user_id = %s
-            ''', (away_id, verwijderde_user_id))
-
-            cursor.execute('''
-                UPDATE user_aways
-                SET geselecteerd = TRUE
-                WHERE away_id = %s AND user_id = %s
-            ''', (away_id, nieuwe_user_id))
-
-            conn.commit()
-
-        conn.close()
-
-    except Exception as e:
-        print(f"Fout bij het vervangen van een gebruiker: {e}")
 
 
 @app.route('/ping')
@@ -286,11 +167,7 @@ def points_list():
         return redirect(url_for("no_access"))
     logged_in_email = session.get('user', {}).get('userinfo', {}).get('email')
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT voornaam, naam, email, puntenaantal FROM users ORDER BY puntenaantal DESC")
-        leden = cursor.fetchall()
-        conn.close()
+        leden = Query.getPointList()
         leden_dict = [
             {
                 'voornaam': lid[0],
@@ -310,11 +187,7 @@ def points_list():
 @admin_required
 def beheer_leden():
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, voornaam, naam FROM users ORDER BY naam, voornaam")
-        leden = cursor.fetchall()
-        conn.close()
+        leden = Query.getSortedListUsers()
         leden_dict = [{'id': lid[0], 'voornaam': lid[1], 'naam': lid[2]} for lid in leden]
         return render_template('beheer_leden.html', leden=leden_dict)
     except psycopg2.Error:
@@ -344,13 +217,12 @@ def add_user():
             return render_template('add_user.html', error="E-mailadres bestaat al!", **data)
 
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute('''INSERT INTO users (voornaam, naam, email, one_account_id, adres_straat, adres_nr, adres_postcode, adres_gemeente, rijksregisternummer, abo_ja_nee, telefoonnummer, puntenaantal)
-                              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                           (data['voornaam'], data['naam'], data['email'], data['one_account_id'], data['adres_straat'], data['adres_nr'], data['adres_postcode'], data['adres_gemeente'], data['rijksregisternummer'], data['abo_ja_nee'], data['telefoonnummer'], data['puntenaantal']))
-            conn.commit()
-            conn.close()
+            Query.addUser (data['voornaam'], data['naam'], data['email'],
+                           data['one_account_id'], data['adres_straat'],
+                           data['adres_nr'], data['adres_postcode'],
+                           data['adres_gemeente'], data['rijksregisternummer'],
+                           data['abo_ja_nee'], data['telefoonnummer'], data['puntenaantal'])
+
             return redirect(url_for('beheer_leden'))
         except psycopg2.Error:
             return render_template('add_user.html', error="Fout bij het toevoegen van de gebruiker.")
@@ -377,8 +249,7 @@ def add_user():
 @admin_required
 def edit_member(id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+
 
         if request.method == 'POST':
             # Haal de form-gegevens op en werk het lid bij
@@ -395,20 +266,11 @@ def edit_member(id):
             telefoonnummer = request.form['telefoonnummer']
             puntenaantal = int(request.form['puntenaantal'])
 
-            cursor.execute('''UPDATE users SET 
-                              voornaam = %s, naam = %s, email = %s, one_account_id = %s, adres_straat = %s, 
-                              adres_nr = %s, adres_postcode = %s, adres_gemeente = %s, rijksregisternummer = %s, 
-                              abo_ja_nee = %s, telefoonnummer = %s, puntenaantal = %s WHERE id = %s''',
-                           (voornaam, naam, email, one_account_id, adres_straat, adres_nr, adres_postcode,
-                            adres_gemeente, rijksregisternummer, abo_ja_nee, telefoonnummer, puntenaantal, id))
-            conn.commit()
-            conn.close()
-            return redirect(url_for('beheer_leden'))
+            Query.updateUser(voornaam, naam, email, one_account_id, adres_straat,
+                             adres_nr, adres_postcode,adres_gemeente, rijksregisternummer,
+                             abo_ja_nee, telefoonnummer, puntenaantal, id)
         else:
-            cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
-            member = cursor.fetchone()
-            conn.close()
-
+            member = Query.getUser(id)
             if not member:
                 return "Lid niet gevonden", 404
 
@@ -428,11 +290,7 @@ def edit_member(id):
 @admin_required
 def delete_member(id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM users WHERE id = %s", (id,))
-        conn.commit()
-        conn.close()
+        Query.deleteUser(id)
         return redirect(url_for('beheer_leden'))
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
@@ -448,40 +306,15 @@ def inschrijven_away():
     page = request.args.get('page', 1, type=int)
     print(f"Huidige pagina: {page}")  # Debug-informatie
 
-    # Maak verbinding met de database
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    Query.setTimezone()
+    now = datetime.now(pytz.timezone('Europe/Brussels')).strftime('%Y-%m-%d %H:%M:%S')
 
-    # Stel de tijdzone in op 'Europe/Brussels'
-    cursor.execute("SET TIMEZONE = 'Europe/Brussels';")
-    conn.commit()
+    Query.setAwayDetailIsClosed(now)
 
-    # Controleer en sluit inschrijvingen die verlopen zijn
-    cursor.execute(''' 
-        SELECT id, inschrijving_einde 
-        FROM away_details 
-        WHERE is_closed = FALSE AND inschrijving_einde < NOW()
-    ''')
-    expired_aways = cursor.fetchall()
+    expired_aways = Query.getClosedInschrijvingen()
     print(f"Verlopen inschrijvingen: {expired_aways}")  # Debug-informatie
 
-    cursor.execute(''' 
-        UPDATE away_details 
-        SET is_closed = TRUE 
-        WHERE is_closed = FALSE AND inschrijving_einde < NOW()
-    ''')
-    conn.commit()
-    print(f"Aantal gesloten inschrijvingen: {cursor.rowcount}")  # Debug-informatie
-
-    # Haal alle away details op die nog niet gesloten zijn
-    cursor.execute(''' 
-        SELECT ad.id, a.naam, ad.aantal_kaarten, ad.beschrijving, ad.away_datum, ad.inschrijving_einde, ad.is_closed
-        FROM away_details ad
-        JOIN aways a ON ad.away_id = a.id
-        WHERE ad.is_closed = FALSE
-        ORDER BY ad.inschrijving_einde ASC
-    ''')
-    available_aways = cursor.fetchall()
+    available_aways = Query.getOpenInschrijvingen()
     print(f"Aantal beschikbare aways: {len(available_aways)}")  # Debug-informatie
 
     # Verkrijg de huidige tijd voor de server-side logica
@@ -509,9 +342,8 @@ def inschrijven_away():
 
     # Haal de huidige gebruiker op
     user_email = session.get('user', {}).get('userinfo', {}).get('email')
-    cursor.execute("SELECT id FROM users WHERE email = %s", (user_email,))
-    user_id_tuple = cursor.fetchone()
-    user_id = user_id_tuple[0] if user_id_tuple else None
+
+    user_id = Query.getUserId(user_email)
     print(f"User ID: {user_id}")  # Debug-informatie
 
     # Controleer voor elke away of de gebruiker al heeft ingeschreven
@@ -519,8 +351,8 @@ def inschrijven_away():
     if user_id:
         for away in formatted_aways:
             away_id = away[0]
-            cursor.execute("SELECT 1 FROM user_aways WHERE user_id = %s AND away_id = %s", (user_id, away_id))
-            if cursor.fetchone():
+            status = Query.getAwayInschrijvingStatus(user_id, away_id)
+            if status:
                 away_inschrijving_status[away_id] = "ja"
             else:
                 away_inschrijving_status[away_id] = "nee"
@@ -540,7 +372,6 @@ def inschrijven_away():
     paginated_aways = formatted_aways[start_index:end_index]
     print(f"Paginated aways: {paginated_aways}")  # Debug-informatie
 
-    conn.close()
 
     return render_template('inschrijven_away.html',
                            available_aways=paginated_aways,
@@ -555,11 +386,7 @@ def inschrijven_away():
 @admin_required
 def beheren_away():
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, naam,waarde FROM aways ORDER BY naam")
-        aways = cursor.fetchall()
-        conn.close()
+        aways = Query.getAways()
         aways_dict = [{'id': away[0], 'naam': away[1],'waarde': away[2]} for away in aways]
         return render_template('beheren_away.html', aways=aways_dict)
     except psycopg2.Error:
@@ -586,11 +413,7 @@ def add_away():
             return render_template('add_away.html', error="Deze away bestaat al!", naam=naam, waarde=waarde)
 
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO aways (naam, waarde) VALUES (%s, %s)", (naam, waarde))
-            conn.commit()
-            conn.close()
+            Query.addAway(naam, waarde)
             return redirect(url_for('beheren_away'))  # Redirect bij succes
         except psycopg2.Error as e:
             print(f"Databasefout: {e}")  # Debug-print
@@ -603,8 +426,6 @@ def add_away():
 @admin_required
 def edit_away(id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
 
         if request.method == 'POST':
             # Haal de formuliergegevens op
@@ -617,16 +438,11 @@ def edit_away(id):
             except ValueError:
                 return render_template('edit_away.html', error="Waarde moet een getal zijn!", away={'id': id, 'naam': naam, 'waarde': waarde})
 
-            # Werk de away bij in de database
-            cursor.execute("UPDATE aways SET naam = %s, waarde = %s WHERE id = %s", (naam, waarde, id))
-            conn.commit()
-            conn.close()
+            Query.updateAway(id, naam, waarde)
+
             return redirect(url_for('beheren_away'))  # Redirect naar de beheerpagina na succes
         else:
-            # Haal de bestaande gegevens van de away op
-            cursor.execute("SELECT id, naam, waarde FROM aways WHERE id = %s", (id,))
-            away = cursor.fetchone()
-            conn.close()
+            away = Query.getAway(id)
 
             if not away:
                 return "Away niet gevonden", 404
@@ -642,11 +458,7 @@ def edit_away(id):
 @admin_required
 def delete_away(id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM aways WHERE id = %s", (id,))
-        conn.commit()
-        conn.close()
+        Query.deleteAway(id)
         return redirect(url_for('beheren_away'))
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
@@ -656,11 +468,7 @@ def delete_away(id):
 @admin_required
 def aanmaken_inschrijving_away():
     # Ophalen van alle available "aways"
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, naam FROM aways")  # Haal de id en naam op van alle 'aways'
-    available_aways = cursor.fetchall()
-    conn.close()
+    available_aways = Query.getAvailableAways()
 
     if request.method == 'POST':
         # Haal de data van het formulier op
@@ -679,21 +487,12 @@ def aanmaken_inschrijving_away():
         formatted_inschrijving_einde = inschrijving_einde.strftime('%Y-%m-%dT%H:%M:%S')
 
         # Voeg de inschrijving toe aan de database
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''INSERT INTO away_details (away_id, aantal_kaarten, beschrijving, away_datum, inschrijving_einde) 
-                          VALUES (%s, %s, %s, %s, %s)''',
-                       (away_id, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde))
-        conn.commit()
-        conn.close()
+        Query.addAwayDetails(away_id, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde)
 
         return redirect(url_for('inschrijven_away'))
 
     # Render de template en geef de beschikbare 'aways' door
     return render_template('aanmaken_inschrijving_away.html', available_aways=available_aways)
-
-
-
 
 
 @app.route('/bewerken_away_details/<int:away_id>', methods=['GET', 'POST'])
@@ -702,8 +501,7 @@ def aanmaken_inschrijving_away():
 def bewerken_away_details(away_id):
     try:
         page = request.args.get('page', 1, type=int)  # Haal het paginanummer op
-        conn = get_db_connection()
-        cursor = conn.cursor()
+
 
         if request.method == 'POST':
             # Haal de form-gegevens op en werk de away inschrijving bij
@@ -722,29 +520,19 @@ def bewerken_away_details(away_id):
             formatted_inschrijving_einde = inschrijving_einde.strftime('%Y-%m-%dT%H:%M:%S')
 
             # Voer de update uit, inclusief de nieuwe away_id
-            cursor.execute('''
-                UPDATE away_details 
-                SET away_id = %s, aantal_kaarten = %s, beschrijving = %s, away_datum = %s, inschrijving_einde = %s 
-                WHERE id = %s
-            ''', (away_id_new, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde, away_id))
+            Query.updateAwayDetails(away_id_new, aantal_kaarten, beschrijving, formatted_away_datum, formatted_inschrijving_einde, away_id)
 
-            conn.commit()
 
             # Roep de functie aan om de geselecteerde gebruikers bij te werken
-            update_geselecteerde_gebruikers(away_id)
+            Query.update_geselecteerde_gebruikers(away_id)
 
-            conn.close()
             return redirect(url_for('inschrijven_away', page=page))  # Redirect naar de juiste pagina
         else:
             # Haal de bestaande gegevens op
-            cursor.execute("SELECT * FROM away_details WHERE id = %s", (away_id,))
-            away_details = cursor.fetchone()
+            away_details = Query.getAwayDetails(away_id)
 
             # Haal alle beschikbare aways op voor de dropdown
-            cursor.execute("SELECT id, naam FROM aways")
-            available_aways = cursor.fetchall()
-
-            conn.close()
+            available_aways = Query.getAvailableAways()
 
             if not away_details:
                 return "Away inschrijving niet gevonden", 404
@@ -764,13 +552,23 @@ def bewerken_away_details(away_id):
 @admin_required
 def verwijder_away_details(away_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM away_details WHERE id = %s", (away_id,))
-        conn.commit()
-        conn.close()
+        # Extra controle of het bestaat
+        away = Query.getAwayDetails(away_id)
+        if not away:
+            print(f"Away detail met id {away_id} bestaat niet.")
+            return redirect(url_for("inschrijven_away"))
+
+        # Eerst bijbehorende user_aways verwijderen, als die bestaan
+        Query.removeUserAways(away_id)
+
+        # Verwijder het away detail
+        Query.removeAwayDetails(away_id)
+
+        print(f"Away detail met id {away_id} succesvol verwijderd.")
         return redirect(url_for('inschrijven_away'))
-    except psycopg2.Error:
+
+    except psycopg2.Error as e:
+        print(f"Fout bij verwijderen van away detail {away_id}: {e}")
         return redirect(url_for("dashboard"))
 
 
@@ -782,52 +580,28 @@ def verwerk_inschrijving():
         user_email = session.get('user', {}).get('userinfo', {}).get('email')
         current_page = request.form.get('current_page', 1, type=int)  # Haal de huidige pagina op
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT id FROM users WHERE email = %s", (user_email,))
-        user_id_tuple = cursor.fetchone()
-
-        if user_id_tuple:
-            user_id = user_id_tuple[0]  # Haal het id uit de tuple
-        else:
-            user_id = None  # Geen resultaat gevonden
+        user_id = Query.getUserId(user_email)
+        if not user_id:
+            return "Gebruiker niet gevonden", 400
 
         away_details_id = request.form.get('away_details_id')
         inschrijving_waarde = request.form.get(f'inschrijven_{away_details_id}')
 
         if inschrijving_waarde == "ja":
-            cursor.execute('''SELECT user_id, away_id FROM user_aways WHERE user_id = %s AND away_id = %s''',
-                           (user_id, away_details_id))
-
-            if cursor.fetchone() is None:
-                cursor.execute('''
-                    INSERT INTO user_aways (user_id, away_id)
-                    VALUES (%s, %s)
-                ''', (user_id, away_details_id))
-
-                conn.commit()
-
+            founded_user_id = Query.getSelectedUserAwayDetails(user_id, away_details_id)
+            if founded_user_id is None:
+                Query.addUserAwayDetails(user_id, away_details_id)
                 # Roep de functie aan om de geselecteerde gebruikers bij te werken
-                update_geselecteerde_gebruikers(away_details_id)
+                Query.update_geselecteerde_gebruikers(away_details_id)
 
-            conn.close()
             return redirect(url_for('inschrijven_away', page=current_page))  # Terug naar de huidige pagina
         else:
-            cursor.execute('''SELECT user_id, away_id FROM user_aways WHERE user_id = %s AND away_id = %s''',
-                           (user_id, away_details_id))
-
-            if cursor.fetchone():
-                cursor.execute('''
-                    DELETE FROM user_aways WHERE user_id = %s AND away_id = %s
-                ''', (user_id, away_details_id))
-
-                conn.commit()
-
+            selected_user_id_and_away_id = Query.getSelectedUserAwayDetails(user_id, away_details_id)
+            if selected_user_id_and_away_id():
+                Query.removeUserAwayDetails(user_id, away_details_id)
                 # Roep de functie aan om de geselecteerde gebruikers bij te werken
-                update_geselecteerde_gebruikers(away_details_id)
+                Query.update_geselecteerde_gebruikers(away_details_id)
 
-            conn.close()
             return redirect(url_for('inschrijven_away', page=current_page))  # Terug naar de huidige pagina
     except Exception as e:
         print(f"Fout: {e}")
@@ -835,8 +609,6 @@ def verwerk_inschrijving():
 
 
 
-# Tijdzone instellen (bijvoorbeeld 'Europe/Brussels')
-TIMEZONE = pytz.timezone('Europe/Brussels')
 
 @app.route('/away_lijsten')
 @login_required
@@ -846,52 +618,22 @@ def away_lijsten():
         page = request.args.get('page', 1, type=int)
         per_page = 1
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
 
         # Roep de functie aan om de geselecteerde gebruikers bij te werken voor elke away
-        cursor.execute("SELECT id FROM away_details")
-        away_ids = [row[0] for row in cursor.fetchall()]
-        for away_id in away_ids:
-            update_geselecteerde_gebruikers(away_id)
 
-        cursor.execute("SELECT COUNT(*) FROM away_details")
-        total_aways = cursor.fetchone()[0]
+        away_details_id = Query.getAwayDetailsId()
+
+        away_ids = [row[0] for row in away_details_id]
+        for away_id in away_ids:
+            Query.update_geselecteerde_gebruikers(away_id)
+
+        amount_aways = Query.getAmountAwayDetails()
+
+        total_aways = amount_aways[0]
         total_pages = (total_aways + per_page - 1) // per_page
         offset = (page - 1) * per_page
 
-        cursor.execute("""
-            SELECT 
-                a.naam, 
-                ad.away_datum, 
-                ad.aantal_kaarten,
-                CASE 
-                    WHEN COUNT(u.id) = 0 THEN 'Nog geen inschrijvingen'
-                    ELSE STRING_AGG(CONCAT(u.voornaam, ' ', u.naam, ' '), E'\n' ORDER BY u.naam, u.voornaam)
-                END AS gebruikers,
-                COALESCE(
-                    STRING_AGG(
-                        CASE 
-                            WHEN ua.geselecteerd = TRUE THEN CONCAT(u.voornaam, ' ', u.naam, ' ')
-                            ELSE NULL
-                        END, 
-                        E'\n' ORDER BY u.naam, u.voornaam
-                    ), 
-                    'Nog geen geselecteerde gebruikers'
-                ) AS geselecteerde_gebruikers,
-                ad.id,
-                ad.inschrijving_einde
-            FROM away_details ad
-            JOIN aways a ON ad.away_id = a.id
-            LEFT JOIN user_aways ua ON ad.id = ua.away_id
-            LEFT JOIN users u ON ua.user_id = u.id
-            GROUP BY a.naam, ad.away_datum, ad.aantal_kaarten, ad.id, ad.inschrijving_einde
-            ORDER BY ad.away_datum
-            LIMIT %s OFFSET %s
-        """, (per_page, offset))
-
-        resultaten = cursor.fetchall()
-        conn.close()
+        resultaten = Query.getAllUserAwayDetails(per_page, offset)
 
         now = datetime.now(TIMEZONE)
 
@@ -939,41 +681,15 @@ def bewerk_lijst(away_id):
     try:
         page = request.args.get('page', 1, type=int)  # Haal het paginanummer op
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        geselecteerde_leden = Query.getGeselecteerdeLeden(away_id)
 
-        cursor.execute('''
-            SELECT u.id, u.voornaam, u.naam, u.one_account_id
-            FROM users u
-            JOIN user_aways ua ON u.id = ua.user_id
-            WHERE ua.away_id = %s AND ua.geselecteerd = TRUE
-            ORDER BY u.naam,u.voornaam
-        ''', (away_id,))
-        geselecteerde_leden = cursor.fetchall()
+        niet_geselecteerde_leden = Query.getNietGeselcteerdeLeden(away_id)
 
-        cursor.execute('''
-            SELECT u.id, u.voornaam, u.naam, u.one_account_id
-            FROM users u
-            LEFT JOIN user_aways ua ON u.id = ua.user_id AND ua.away_id = %s
-            WHERE ua.geselecteerd IS NULL OR ua.geselecteerd = FALSE
-        ''', (away_id,))
-        niet_geselecteerde_leden = cursor.fetchall()
+        aantal_kaarten = Query.getAantalKaarten(away_id)
 
-        cursor.execute("SELECT aantal_kaarten FROM away_details WHERE id = %s", (away_id,))
-        aantal_kaarten = cursor.fetchone()[0]
+        leden_in_wacht = Query.getLedenInWacht(away_id)
 
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM users u
-            JOIN user_aways ua ON u.id = ua.user_id
-            WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
-        """, (away_id,))
-        leden_in_wacht = cursor.fetchone()[0]
-
-        cursor.execute("SELECT count(user_id) FROM user_aways WHERE away_id = %s AND geselecteerd = TRUE", (away_id,))
-        aantal_geselecteerde_leden = cursor.fetchone()[0]
-
-        conn.close()
+        aantal_geselecteerde_leden = Query.getAantalGeselcteerdeLeden(away_id)
 
         return render_template('bewerk_lijst.html',
                               geselecteerde_leden=geselecteerde_leden,
@@ -996,31 +712,11 @@ def verwijder_lijst():
     away_id = request.form.get('away_id')
 
     if away_id:
-        # Maak verbinding met de database
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        Query.removeUserAways(away_id)
 
-        try:
-            # Verwijder eerst alle rijen uit de tabel user_aways waar away_id overeenkomt
-            cursor.execute("DELETE FROM user_aways WHERE away_id = %s", (away_id,))
-
-            # Verwijder de record uit de away_details tabel
-            cursor.execute("DELETE FROM away_details WHERE id = %s", (away_id,))
-
-            # Commit de veranderingen naar de database
-            conn.commit()
-
-        except Exception as e:
-            # Als er iets misgaat, rollback de transactie
-            conn.rollback()
-        finally:
-            # Sluit de cursor en de verbinding
-            cursor.close()
-            conn.close()
+        Query.removeAwayDetails(away_id)
 
     return redirect(url_for('away_lijsten'))
-
-
 
 
 @app.route('/download_lijst/<int:away_id>')
@@ -1028,28 +724,9 @@ def verwijder_lijst():
 @admin_required
 def download_lijst(away_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        geselecteerde_leden = Query.getGeselecteerdeLedenFinalInfo(away_id)
 
-        # Haal de geselecteerde leden op uit de database
-        cursor.execute("""
-            SELECT u.voornaam, u.naam, u.one_account_id
-            FROM users u
-            JOIN user_aways ua ON u.id = ua.user_id
-            WHERE ua.away_id = %s AND ua.geselecteerd = TRUE
-            ORDER BY u.naam, u.voornaam
-        """, (away_id,))
-        geselecteerde_leden = cursor.fetchall()
-
-
-        cursor.execute("""
-        SELECT a.naam
-        FROM aways a
-        join away_details ad on ad.away_id = a.id
-        WHERE ad.id = %s
-        """,(away_id,))
-        away_naam = cursor.fetchone()[0]
-        conn.close()
+        away_naam = Query.getAwayNaam(away_id)
 
         # Maak een PDF-bestand in het geheugen
         buffer = BytesIO()
@@ -1099,43 +776,18 @@ def download_lijst(away_id):
 @admin_required
 def bevestig_lijst(away_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        away_waarde = Query.getAwayWaarde(away_id)
 
-        # Haal de waarde van de away op
-        cursor.execute("""
-            SELECT a.waarde 
-            FROM aways a
-            JOIN away_details ad ON a.id = ad.away_id
-            WHERE ad.id = %s
-        """, (away_id,))
-        away_waarde = cursor.fetchone()[0]
-
-        # Haal de geselecteerde leden op
-        cursor.execute("""
-            SELECT u.id 
-            FROM users u
-            JOIN user_aways ua ON u.id = ua.user_id
-            WHERE ua.away_id = %s AND ua.geselecteerd = TRUE
-        """, (away_id,))
-        geselecteerde_leden = cursor.fetchall()
+        geselecteerde_leden = Query.getGeselecteerdeLedenId(away_id)
 
         # Werk de punten van de geselecteerde leden bij
         for lid in geselecteerde_leden:
             user_id = lid[0]
-            cursor.execute("""
-                UPDATE users 
-                SET puntenaantal = puntenaantal + %s 
-                WHERE id = %s
-            """, (away_waarde, user_id))
+            Query.updatePuntenGeselcteerdeLeden(away_waarde, user_id)
 
-        cursor.execute("DELETE FROM user_aways WHERE away_id = %s", (away_id,))
+        Query.removeUserAways(away_id)
 
-        # Verwijder de lijst uit de database
-        cursor.execute("DELETE FROM away_details WHERE id = %s", (away_id,))
-
-        conn.commit()
-        conn.close()
+        Query.removeAwayDetails(away_id)
 
         return redirect(url_for('away_lijsten'))
     except Exception as e:
@@ -1148,53 +800,24 @@ def bevestig_lijst(away_id):
 @admin_required
 def vervang_gebruiker(away_id, verwijderde_user_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Stap 1: Controleer of er nog leden in de wacht staan
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM users u
-            JOIN user_aways ua ON u.id = ua.user_id
-            WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
-        """, (away_id,))
-
-        leden_in_wacht = cursor.fetchone()[0] > 0  # Boolean: True als er leden in de wacht staan, anders False
-
+        leden_in_wacht = Query.getAmountNietGeselecteerdeLeden(away_id)
+        # Boolean: True als er leden in de wacht staan, anders False
         if not leden_in_wacht:
             # Als er geen leden in de wacht staan, stop de bewerking en geef een foutmelding terug
             return "Er zijn geen leden meer in de wachtlijst", 400
 
         # Stap 2: Verwijder de gebruiker helemaal uit de selectie
-        cursor.execute("""
-            DELETE FROM user_aways
-            WHERE away_id = %s AND user_id = %s
-        """, (away_id, verwijderde_user_id))
+        Query.removeOldUser(away_id, verwijderde_user_id)
 
         # Stap 3: Zoek de gebruiker met de hoogste punten die nog niet geselecteerd is
-        cursor.execute("""
-            SELECT u.id 
-            FROM users u
-            JOIN user_aways ua ON u.id = ua.user_id
-            WHERE ua.away_id = %s AND ua.geselecteerd = FALSE
-            ORDER BY u.puntenaantal DESC
-            LIMIT 1
-        """, (away_id,))
-
-        nieuwe_gebruiker = cursor.fetchone()
+        nieuwe_gebruiker = Query.getHoogsteNietgeselcteerdeLid(away_id)
 
         if nieuwe_gebruiker:
             nieuwe_user_id = nieuwe_gebruiker[0]
 
             # Stap 4: Zet deze nieuwe gebruiker in de selectie
-            cursor.execute("""
-                UPDATE user_aways 
-                SET geselecteerd = TRUE 
-                WHERE away_id = %s AND user_id = %s
-            """, (away_id, nieuwe_user_id))
+            Query.addNieuwGeselecteerdLidAanLijst(away_id, nieuwe_user_id)
 
-        conn.commit()
-        conn.close()
 
         return redirect(url_for('bewerk_lijst', away_id=away_id))
 
@@ -1208,33 +831,9 @@ def vervang_gebruiker(away_id, verwijderde_user_id):
 @admin_required
 def vervang_gebruiker_kies_vrevanger(away_id, verwijderde_user_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        oude_naam = Query.getOldnaam(verwijderde_user_id)
 
-
-        cursor.execute("""
-                   SELECT u.voornaam, u.naam
-                    FROM users u
-                    WHERE u.id = %s
-
-                """, (verwijderde_user_id,))
-
-        oude_naam = cursor.fetchone()
-
-        cursor.execute("""
-           SELECT u.id, u.voornaam, u.naam
-            FROM users u
-            LEFT JOIN user_aways ua ON ua.user_id = u.id AND ua.away_id = %s
-            WHERE (ua.away_id = %s AND ua.geselecteerd = false)
-               OR ua.away_id IS NULL
-            ORDER BY u.naam;
-
-        """, (away_id,away_id))
-
-        lijst_mogelijke_leden = cursor.fetchall()
-
-        conn.commit()
-        conn.close()
+        lijst_mogelijke_leden = Query.getAlleMogelijkeLeden(away_id)
 
         return render_template('zelf_gekozen_vervanger.html', away_id=away_id,verwijderde_user_id = verwijderde_user_id,lijst_mogelijke_leden = lijst_mogelijke_leden,oude_naam = oude_naam)
 
@@ -1253,34 +852,14 @@ def zelf_gekozen_vervanger():
         verwijderde_user_id = request.form.get('verwijderde_user_id')
 
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+            Query.removeOldUser(away_id, verwijderde_user_id)
 
-            cursor.execute("""
-                DELETE FROM user_aways
-                WHERE away_id = %s AND user_id = %s
-            """, (away_id, verwijderde_user_id))
+            check = Query.getUserAndAwayIdFromUserAways(nieuwe_gebruiker_id, away_id)
 
-            cursor.execute("""
-                SELECT * FROM user_aways
-                WHERE user_id = %s AND away_id = %s
-            """, (nieuwe_gebruiker_id, away_id,))
-
-            check = cursor.fetchone()
             if check is None:
-                cursor.execute("""
-                    INSERT INTO user_aways (user_id, away_id, geselecteerd)
-                    VALUES (%s, %s, TRUE)
-                """, (nieuwe_gebruiker_id, away_id,))
+                Query.addLidAanList(nieuwe_gebruiker_id, away_id)
             else:
-                cursor.execute("""
-                    UPDATE user_aways 
-                    SET geselecteerd = TRUE 
-                    WHERE away_id = %s AND user_id = %s
-                """, (away_id, nieuwe_gebruiker_id))
-
-            conn.commit()
-            conn.close()
+                Query.updateGeselecteerdStatus(nieuwe_gebruiker_id, away_id)
 
             return redirect(url_for('bewerk_lijst', away_id=away_id))
 
@@ -1298,24 +877,10 @@ def zelf_gekozen_vervanger():
 @admin_required
 def verwijder_gebruiker_zonder_vervangen(away_id, verwijderde_user_id):
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-
         # Stap 2: Verwijder de gebruiker helemaal uit de selectie
-        cursor.execute("""
-            DELETE FROM user_aways
-            WHERE away_id = %s AND user_id = %s
-        """, (away_id, verwijderde_user_id))
+        Query.removeOldUser(away_id, verwijderde_user_id)
 
-        # Stap 3: Zoek de gebruiker met de hoogste punten die nog niet geselecteerd is
-        cursor.execute("""
-           DELETE FROM user_aways
-            WHERE away_id = %s AND geselecteerd = FALSE
-        """, (away_id,))
-
-        conn.commit()
-        conn.close()
+        Query.removeNietGeselecteerdeLeden(away_id)
 
         return redirect(url_for('bewerk_lijst', away_id=away_id))
 
@@ -1333,18 +898,12 @@ def refresh_page():
 @app.route('/check_closed_inschrijvingen', methods=['GET'])
 def check_closed_inschrijvingen():
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+
 
         # Haal alle inschrijvingen op die gesloten moeten worden
-        cursor.execute(''' 
-            SELECT id 
-            FROM away_details 
-            WHERE is_closed = FALSE AND inschrijving_einde < NOW()
-        ''')
-        closed_inschrijvingen = cursor.fetchall()
 
-        conn.close()
+        closed_inschrijvingen = Query.getAwayDetailsIdFromGeslotenInschrijvingen()
+
 
         # Retourneer een lijst van IDs van gesloten inschrijvingen
         return {'closed_inschrijvingen': [row[0] for row in closed_inschrijvingen]}
@@ -1356,37 +915,16 @@ def check_closed_inschrijvingen():
 @login_required
 @admin_required
 def toevoegen_lid_aan_lijst(away_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT COUNT(*) FROM user_aways
-        WHERE away_id = %s
-        """, (away_id,))
+    aantal_leden = Query.getAantalLedenInLijst(away_id)
 
-    aantal_leden = cursor.fetchone()[0]
-
-    cursor.execute("""
-            SELECT aantal_kaarten FROM away_details
-            WHERE id = %s
-            """, (away_id,))
-    aantal_kaarten = cursor.fetchone()[0]
+    aantal_kaarten = Query.getAantalKaarten(away_id)
 
 
     if aantal_leden >= aantal_kaarten:
         return redirect(url_for('bewerk_lijst', away_id=away_id))
 
-    cursor.execute("""
-              SELECT u.id, u.voornaam, u.naam
-               FROM users u
-               LEFT JOIN user_aways ua ON ua.user_id = u.id AND ua.away_id = %s
-               WHERE (ua.away_id = %s AND ua.geselecteerd = false)
-                  OR ua.away_id IS NULL
-               ORDER BY u.naam;
-
-           """, (away_id, away_id))
-
-    lijst_mogelijke_leden = cursor.fetchall()
+    lijst_mogelijke_leden = Query.getAlleMogelijkeLeden(away_id)
 
     return render_template('toevoegen_lid_lijst.html', away_id=away_id,
                            lijst_mogelijke_leden=lijst_mogelijke_leden)
@@ -1400,49 +938,20 @@ def verwerk_lid_toevoegen_lijst():
 
         away_id = request.form.get('away_id')
         nieuwe_gebruiker_id = request.form.get('nieuwe_gebruiker')
-        conn = get_db_connection()
-        cursor = conn.cursor()
 
-        cursor.execute("""
-                SELECT COUNT(*) FROM user_aways
-                WHERE away_id = %s
-                """, (away_id,))
+        aantal_leden = Query.getAantalLedenInLijst(away_id)
 
-        aantal_leden = cursor.fetchone()[0]
-
-        cursor.execute("""
-                    SELECT aantal_kaarten FROM away_details
-                    WHERE id = %s
-                    """, (away_id,))
-        aantal_kaarten = cursor.fetchone()[0]
+        aantal_kaarten = Query.getAantalKaarten(away_id)
 
         if aantal_leden >= aantal_kaarten:
             return redirect(url_for('bewerk_lijst', away_id=away_id))
 
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                        SELECT * FROM user_aways
-                        WHERE user_id = %s AND away_id = %s
-                    """, (nieuwe_gebruiker_id, away_id,))
-
-            check = cursor.fetchone()
+            check = Query.getUserAndAwayIdFromUserAways(nieuwe_gebruiker_id, away_id)
             if check is None:
-                cursor.execute("""
-                            INSERT INTO user_aways (user_id, away_id, geselecteerd)
-                            VALUES (%s, %s, TRUE)
-                        """, (nieuwe_gebruiker_id, away_id,))
+                Query.addLidAanList(nieuwe_gebruiker_id, away_id)
             else:
-                cursor.execute("""
-                            UPDATE user_aways 
-                            SET geselecteerd = TRUE 
-                            WHERE away_id = %s AND user_id = %s
-                        """, (away_id, nieuwe_gebruiker_id))
-
-            conn.commit()
-            conn.close()
+                Query.updateGeselecteerdStatus(away_id, nieuwe_gebruiker_id)
 
             return redirect(url_for('bewerk_lijst', away_id=away_id))
 
