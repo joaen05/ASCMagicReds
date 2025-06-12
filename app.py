@@ -1,4 +1,4 @@
-from flask import Flask, redirect, session, url_for, render_template, request, send_file
+from flask import Flask, redirect, session, url_for, render_template, request, send_file, jsonify
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 import psycopg2
@@ -578,36 +578,44 @@ def verwijder_away_details(away_id):
 def verwerk_inschrijving():
     try:
         user_email = session.get('user', {}).get('userinfo', {}).get('email')
-        current_page = request.form.get('current_page', 1, type=int)  # Haal de huidige pagina op
+        # current_page is no longer directly used for redirection, but you might keep it for other logic
+        # current_page = request.form.get('current_page', 1, type=int)
 
         user_id = Query.getUserId(user_email)
         if not user_id:
-            return "Gebruiker niet gevonden", 400
+            # Return JSON for error
+            return jsonify({'success': False, 'message': 'Gebruiker niet gevonden.'}), 400
 
         away_details_id = request.form.get('away_details_id')
-        inschrijving_waarde = request.form.get(f'inschrijven_{away_details_id}')
+        # Crucial change: The JavaScript is now sending 'inschrijving_status' as the key
+        inschrijving_waarde = request.form.get('inschrijving_status')
 
         if inschrijving_waarde == "ja":
             founded_user_id = Query.getSelectedUserAwayDetails(user_id, away_details_id)
             if founded_user_id is None:
                 Query.addUserAwayDetails(user_id, away_details_id)
-                # Roep de functie aan om de geselecteerde gebruikers bij te werken
                 Query.update_geselecteerde_gebruikers(away_details_id)
-
-            return redirect(url_for('inschrijven_away', page=current_page))  # Terug naar de huidige pagina
-        else:
+                return jsonify({'success': True, 'message': 'Je bent succesvol ingeschreven!'})
+            else:
+                # If already registered, perhaps a different message or just success
+                return jsonify({'success': True, 'message': 'Je bent al ingeschreven voor deze away.'})
+        elif inschrijving_waarde == "nee":
+            # Check if there's an existing registration to remove
             selected_user_id_and_away_id = Query.getSelectedUserAwayDetails(user_id, away_details_id)
-            if selected_user_id_and_away_id():
+            if selected_user_id_and_away_id: # This should check if a record *exists*
                 Query.removeUserAwayDetails(user_id, away_details_id)
-                # Roep de functie aan om de geselecteerde gebruikers bij te werken
                 Query.update_geselecteerde_gebruikers(away_details_id)
+                return jsonify({'success': True, 'message': 'Je bent succesvol uitgeschreven!'})
+            else:
+                # If not registered, perhaps a different message or just success
+                return jsonify({'success': True, 'message': 'Je bent niet ingeschreven voor deze away.'})
+        else:
+            # Handle unexpected inschrijving_waarde
+            return jsonify({'success': False, 'message': 'Ongeldige inschrijvingswaarde.'}), 400
 
-            return redirect(url_for('inschrijven_away', page=current_page))  # Terug naar de huidige pagina
     except Exception as e:
-        print(f"Fout: {e}")
-        return f"Er is een fout opgetreden: {e}", 500
-
-
+        print(f"Fout in verwerk_inschrijving: {e}") # Log the specific error
+        return jsonify({'success': False, 'message': f"Er is een interne fout opgetreden: {e}"}), 500
 
 
 @app.route('/away_lijsten')

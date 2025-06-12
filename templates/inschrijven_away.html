@@ -11,7 +11,7 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> {# Make sure style.css is correctly linked #}
     <style>
         /* Altijd scrollen binnen de card */
         .scrollbar {
@@ -157,7 +157,8 @@
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <form method="POST" action="{{ url_for('verwerk_inschrijving') }}">
+                                {# Added class 'inschrijf-form' to the form #}
+                                <form class="inschrijf-form" method="POST" action="{{ url_for('verwerk_inschrijving') }}">
                                     <input type="hidden" name="current_page" value="{{ current_page }}">
                                     <div class="form-group">
                                         <strong>Inschrijvingsdeadline:</strong>
@@ -167,7 +168,7 @@
                                         <label for="inschrijven_{{ away[0] }}">Inschrijven:</label>
                                         <input type="hidden" name="user_id" value="{{ session['user']['userinfo']['id'] }}">
                                         <input type="hidden" name="away_details_id" value="{{ away[0] }}">
-                                        <select class="form-control" id="inschrijven_{{ away[0] }}" name="inschrijven_{{ away[0] }}">
+                                        <select class="form-control" id="inschrijven_{{ away[0] }}" name="inschrijven_select_{{ away[0] }}"> {# Changed name for easier JS handling #}
                                             <option value="nee" {% if away_inschrijving_status.get(away[0], "nee") == "nee" %}selected{% endif %}>Nee</option>
                                             <option value="ja" {% if away_inschrijving_status.get(away[0], "nee") == "ja" %}selected{% endif %}>Ja</option>
                                         </select>
@@ -198,12 +199,35 @@
         {% endif %}
     </div>
 
+    <div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statusModalLabel">Status Inschrijving</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="statusModalBody">
+                    </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Sluiten</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+
 <script>
     function confirmDelete(awayId) {
         if (confirm("Weet je zeker dat je deze inschrijving wilt verwijderen?")) {
             document.getElementById("delete-form-" + awayId).submit();
         }
     }
+
     function updateCountdown(endTime, elementId, buttonId, awayId) {
         const countdownElement = document.getElementById(elementId);
         const buttonElement = document.getElementById(buttonId);
@@ -220,17 +244,28 @@
                 const seconds = Math.floor((timeLeft % (1000 * 60)) / (1000));
 
                 countdownElement.innerHTML = `${days}d ${hours}u ${minutes}m ${seconds}s`;
-                buttonElement.disabled = false;
+                // Enable button only if there's time left
+                if (buttonElement) { // Check if buttonElement exists
+                    buttonElement.disabled = false;
+                }
             } else {
                 countdownElement.innerHTML = "Inschrijving gesloten";
-                buttonElement.disabled = true;
+                if (buttonElement) { // Check if buttonElement exists
+                    buttonElement.disabled = true;
+                    // Also disable the select dropdown
+                    const selectElement = document.getElementById(`inschrijven_${awayId}`);
+                    if (selectElement) {
+                        selectElement.disabled = true;
+                    }
+                }
                 clearInterval(interval);
 
-                // Stuur een verzoek naar Flask om de pagina te herladen
-                fetch("/refresh_page", { method: "POST" })
+                // This part sends a request to Flask to signal a page reload if needed
+                // Only reload if the server says there are closed inschrijvingen
+                fetch("/refresh_page", { method: "POST" }) // This part seems custom for your setup
                     .then(response => {
                         if (response.ok) {
-                            window.location.reload();
+                            window.location.reload(); // Reload the page if Flask confirms
                         }
                     });
             }
@@ -240,34 +275,97 @@
         const interval = setInterval(update, 1000);
     }
 
-    {% for away in available_aways %}
-        updateCountdown("{{ away[5] }}", "countdown_{{ away[0] }}", "submit_{{ away[0] }}", {{ away[0] }});
-    {% endfor %}
+    // Initialize Bootstrap Modal instance
+    let statusModal; // Declare globally or in a scope accessible by event listeners
 
-    function checkForClosedInschrijvingen() {
-        fetch('/check_closed_inschrijvingen')
-            .then(response => response.json())
-            .then(data => {
-                if (data.closed_inschrijvingen && data.closed_inschrijvingen.length > 0) {
-                    // Als er gesloten inschrijvingen zijn, herlaad de pagina
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                console.error('Fout bij het controleren van gesloten inschrijvingen:', error);
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize the modal after DOM is loaded
+        statusModal = new bootstrap.Modal(document.getElementById('statusModal'));
+        const statusModalBody = document.getElementById('statusModalBody');
+
+        const inschrijfForms = document.querySelectorAll('.inschrijf-form');
+
+        inschrijfForms.forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault(); // Prevent the default form submission
+
+                const formData = new FormData(form);
+                const awayDetailsId = formData.get('away_details_id');
+                // Correctly get the selected value from the dynamic select
+                const selectElementName = `inschrijven_select_${awayDetailsId}`; // Use the new name from HTML
+                const selectedValue = form.querySelector(`[name="${selectElementName}"]`).value;
+
+                // Add the selected value to formData under a consistent name for the backend
+                formData.append('inschrijving_status', selectedValue);
+
+                // Important: If your Flask route relies ONLY on 'inschrijving_status',
+                // you might want to remove the dynamic name from formData to avoid duplicates,
+                // though Flask's request.form will typically handle multiple keys.
+                // formData.delete(selectElementName); // Uncomment if Flask gets confused by both
+
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        // If response is not OK (e.g., 500 server error, 400 bad request),
+                        // parse error message from JSON if available, otherwise throw generic error.
+                        return response.json().then(errorData => {
+                            throw new Error(errorData.message || 'Server error occurred with status ' + response.status);
+                        }).catch(() => {
+                            // Catch if JSON parsing fails for a non-OK response
+                            throw new Error('Server returned an error, but message could not be parsed. Status: ' + response.status);
+                        });
+                    }
+                    return response.json(); // Parse the JSON response for success cases
+                })
+                .then(data => {
+                    if (data.success) {
+                        statusModalBody.textContent = data.message;
+                        statusModal.show(); // Show the modal
+                        // Optional: You can add logic here to update the UI if needed
+                        // For example, changing the color of the select box or showing a checkmark
+                    } else {
+                        statusModalBody.textContent = 'Fout: ' + data.message;
+                        statusModal.show(); // Show modal even on application-level errors (e.g., user not found)
+                    }
+                })
+                .catch(error => {
+                    console.error('Error during fetch:', error);
+                    statusModalBody.textContent = 'Er is een netwerkfout opgetreden of de server reageerde niet correct: ' + error.message;
+                    statusModal.show();
+                });
             });
-    }
+        });
 
-    // Voer de controle direct uit wanneer de pagina wordt geladen
-    document.addEventListener("DOMContentLoaded", function() {
+        // Apply countdowns for all available aways (This loop is generated by Jinja2)
+        {% for away in available_aways %}
+            updateCountdown("{{ away[5] }}", "countdown_{{ away[0] }}", "submit_{{ away[0] }}", {{ away[0] }});
+        {% endfor %}
+
+        function checkForClosedInschrijvingen() {
+            fetch('/check_closed_inschrijvingen')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.closed_inschrijvingen && data.closed_inschrijvingen.length > 0) {
+                        // If there are closed registrations, reload the page
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Fout bij het controleren van gesloten inschrijvingen:', error);
+                });
+        }
+
+        // Execute the check directly when the page loads
         checkForClosedInschrijvingen();
-    });
 
-    // Voer de controle elke 30 seconden uit
-    setInterval(checkForClosedInschrijvingen, 30000); // 30 seconden
+        // Execute the check every 30 seconds
+        setInterval(checkForClosedInschrijvingen, 30000); // 30 seconds
+    });
 </script>
 
 </body>
 </html>
-
 {% endblock %}
