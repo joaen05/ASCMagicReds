@@ -128,6 +128,12 @@ class Query:
             return cursor.fetchall()
 
     @staticmethod
+    def getUserByEmail(email):
+        with Query._get_cursor() as cursor:
+            cursor.execute("SELECT voornaam, naam, email, puntenaantal FROM users WHERE email = %s", (email,))
+            return cursor.fetchone()
+
+    @staticmethod
     def getSortedListUsers():
         with Query._get_cursor() as cursor:
             cursor.execute("SELECT id, voornaam, naam FROM users ORDER BY naam, voornaam")

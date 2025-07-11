@@ -52,7 +52,7 @@ def keep_alive():
             requests.get('https://ascmagicreds.onrender.com/ping')
         except:
             pass
-        time.sleep(300)  # Wacht 5 minuten tussen elke ping
+        time.sleep(180)  # Wacht 3 minuten tussen elke ping
 
 
 def get_naam():
@@ -160,28 +160,47 @@ def logout():
 def no_access():
     return render_template("noAcces.html")
 
+
 @app.route('/points_list')
 @login_required
 def points_list():
     if not is_authorized():
         return redirect(url_for("no_access"))
+
     logged_in_email = session.get('user', {}).get('userinfo', {}).get('email')
+    is_admin = session.get("is_admin", False)
+
     try:
-        leden = Query.getPointList()
-        leden_dict = [
-            {
-                'voornaam': lid[0],
-                'naam': lid[1],
-                'email': lid[2],
-                'puntenaantal': lid[3],
-                'is_logged_in': (lid[2] == logged_in_email)
-            }
-            for lid in leden
-        ]
-        return render_template('points_list.html', leden=leden_dict)
+        if is_admin:
+            # Admin ziet alle leden
+            leden = Query.getPointList()
+            leden_dict = [
+                {
+                    'voornaam': lid[0],
+                    'naam': lid[1],
+                    'email': lid[2],
+                    'puntenaantal': lid[3],
+                    'is_logged_in': (lid[2] == logged_in_email)
+                }
+                for lid in leden
+            ]
+        else:
+            # Normale gebruiker ziet alleen zichzelf
+            lid = Query.getUserByEmail(logged_in_email)
+            if lid:
+                leden_dict = [{
+                    'voornaam': lid[0],
+                    'naam': lid[1],
+                    'email': lid[2],
+                    'puntenaantal': lid[3],
+                    'is_logged_in': True
+                }]
+            else:
+                leden_dict = []
+
+        return render_template('points_list.html', leden=leden_dict, is_admin=is_admin)
     except psycopg2.Error:
         return redirect(url_for("dashboard"))
-
 @app.route('/beheer_leden')
 @login_required
 @admin_required
@@ -438,7 +457,7 @@ def edit_away(id):
             except ValueError:
                 return render_template('edit_away.html', error="Waarde moet een getal zijn!", away={'id': id, 'naam': naam, 'waarde': waarde})
 
-            Query.updateAway(id, naam, waarde)
+            Query.updateAway(naam, waarde, id)
 
             return redirect(url_for('beheren_away'))  # Redirect naar de beheerpagina na succes
         else:

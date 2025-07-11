@@ -6,15 +6,19 @@
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Puntenoverzicht</h2>
-        <input type="text" id="searchInput" class="form-control form-control-sm mb-3"
-           placeholder="🔍 Zoek op voornaam..." onkeyup="filterLeden()" style="max-width: 400px;">
+        {% if is_admin %}
+            <input type="text" id="searchInput" class="form-control form-control-sm mb-3"
+               placeholder="🔍 Zoek op voornaam..." onkeyup="filterLeden()" style="max-width: 400px;">
+        {% endif %}
     </div>
 
     <div style="max-height: calc(100vh - 200px); overflow-y: auto;">
         <table class="table table-striped">
             <thead class="sticky-header">
                 <tr>
+                    {% if session['is_admin'] %}
                     <th>#</th>
+                    {% endif %}
                     <th>Voornaam</th>
                     <th>Achternaam</th>
                     <th>Puntenaantal</th>
@@ -23,10 +27,16 @@
             <tbody id="ledenTable">
                 {% for lid in leden %}
                 <tr {% if lid.is_logged_in %}class="table-primary"{% endif %}>
+                    {% if session['is_admin'] %}
                     <td>{{ loop.index }}</td>
+                    {% endif %}
                     <td class="voornaam">{{ lid.voornaam }}</td>
                     <td>{{ lid.naam }}</td>
                     <td>{{ lid.puntenaantal }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">Geen gegevens gevonden.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -55,13 +65,13 @@
         }
     }
     document.addEventListener('DOMContentLoaded', function () {
-    const input = document.getElementById("searchInput");
-
-    input.addEventListener('input', function () {
-        this.value = this.value.replace(/[^a-zA-ZÀ-ÿ]/g, '');
+        const input = document.getElementById("searchInput");
+        if (input) {
+            input.addEventListener('input', function () {
+                this.value = this.value.replace(/[^a-zA-ZÀ-ÿ]/g, '');
+            });
+        }
     });
-});
-
 </script>
 
 <style>
