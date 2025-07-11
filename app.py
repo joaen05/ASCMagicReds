@@ -268,10 +268,8 @@ def add_user():
 @admin_required
 def edit_member(id):
     try:
-
-
         if request.method == 'POST':
-            # Haal de form-gegevens op en werk het lid bij
+            # Haal de formuliergegevens op en werk het lid bij
             voornaam = request.form['voornaam'].title()
             naam = request.form['naam'].title()
             email = request.form['email']
@@ -288,12 +286,17 @@ def edit_member(id):
             Query.updateUser(voornaam, naam, email, one_account_id, adres_straat,
                              adres_nr, adres_postcode,adres_gemeente, rijksregisternummer,
                              abo_ja_nee, telefoonnummer, puntenaantal, id)
+
+            # Oplossing: Omleiden naar 'beheer_leden' na een succesvolle update
+            return redirect(url_for("beheer_leden"))
+
         else:
+            # Dit deel wordt uitgevoerd bij een GET-verzoek (om het formulier te tonen)
             member = Query.getUser(id)
             if not member:
                 return "Lid niet gevonden", 404
 
-            # Zet de member gegevens om naar een dictionary
+            # Zet de lid-gegevens om naar een dictionary
             keys = ['id', 'voornaam', 'naam', 'email', 'one_account_id', 'adres_straat', 'adres_nr',
                     'adres_postcode', 'adres_gemeente', 'rijksregisternummer', 'abo_ja_nee', 'telefoonnummer',
                     'puntenaantal']
@@ -301,8 +304,11 @@ def edit_member(id):
 
             # Stuur de gegevens naar de template
             return render_template('edit_member.html', member=member_dict)
-    except psycopg2.Error:
-        return redirect(url_for("dashboard"))
+    except psycopg2.Error as e:
+        # Foutafhandeling voor databasefouten
+        print(f"Databasefout: {e}") # Log de fout voor debugging
+        return redirect(url_for("beheer_leden")) # Omleiden bij een fout, ook naar beheer_leden
+
 
 @app.route('/delete_member/<int:id>', methods=['POST'])
 @login_required
