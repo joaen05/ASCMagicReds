@@ -47,7 +47,7 @@ class Query:
     @staticmethod
     def is_email_in_db(email):
         with Query._get_cursor() as cursor:
-            cursor.execute("SELECT COUNT(*) FROM users WHERE email = %s", (email,))
+            cursor.execute("SELECT COUNT(*) FROM users WHERE LOWER(email) = LOWER(%s)", (email,))
             result = cursor.fetchone()
             return result[0] > 0
 
