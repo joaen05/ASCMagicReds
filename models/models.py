@@ -176,9 +176,9 @@ class Query:
     def getClosedInschrijvingen():
         with Query._get_cursor() as cursor:
             cursor.execute(''' 
-                SELECT id, inschrijving_einde 
+                SELECT id, away_datum 
                 FROM away_details 
-                WHERE is_closed = FALSE AND inschrijving_einde < NOW()
+                WHERE is_closed = FALSE AND away_datum < NOW()
             ''')
             return cursor.fetchall()
 
@@ -188,7 +188,7 @@ class Query:
             cursor.execute(''' 
                 UPDATE away_details 
                 SET is_closed = TRUE 
-                WHERE is_closed = FALSE AND inschrijving_einde < %s
+                WHERE is_closed = FALSE AND away_datum < %s
             ''', (now,))
 
     @staticmethod
@@ -198,7 +198,7 @@ class Query:
                 SELECT ad.id, a.naam, ad.aantal_kaarten, ad.beschrijving, ad.away_datum, ad.inschrijving_einde, ad.is_closed
                 FROM away_details ad
                 JOIN aways a ON ad.away_id = a.id
-                WHERE ad.is_closed = FALSE
+                WHERE ad.is_closed = FALSE AND ad.away_datum > NOW()
                 ORDER BY ad.inschrijving_einde ASC
             ''')
             return cursor.fetchall()
@@ -553,7 +553,7 @@ class Query:
             cursor.execute(''' 
                 SELECT id 
                 FROM away_details 
-                WHERE is_closed = FALSE AND inschrijving_einde < NOW()
+                WHERE is_closed = FALSE AND away_datum < NOW()
             ''')
             return cursor.fetchall()
 
