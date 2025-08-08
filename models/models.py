@@ -40,7 +40,7 @@ class Query:
     @staticmethod
     def getFullname(email):
         with Query._get_cursor() as cursor:
-            cursor.execute("SELECT concat(voornaam, ' ', naam) FROM users WHERE email = %s", (email,))
+            cursor.execute("SELECT concat(voornaam, ' ', naam) FROM users WHERE LOWER(email) = LOWER(%s)", (email,))
             result = cursor.fetchone()
             return result[0] if result else "Onbekende gebruiker"
 
@@ -130,7 +130,7 @@ class Query:
     @staticmethod
     def getUserByEmail(email):
         with Query._get_cursor() as cursor:
-            cursor.execute("SELECT voornaam, naam, email, puntenaantal FROM users WHERE email = %s", (email,))
+            cursor.execute("SELECT voornaam, naam, email, puntenaantal FROM users WHERE LOWER(email) = LOWER(%s)", (email,))
             return cursor.fetchone()
 
     @staticmethod
@@ -206,7 +206,7 @@ class Query:
     @staticmethod
     def getUserId(user_email):
         with Query._get_cursor() as cursor:
-            cursor.execute("SELECT id FROM users WHERE email = %s", (user_email,))
+            cursor.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(%s)", (user_email,))
             result = cursor.fetchone()
             return result[0] if result else None
 
