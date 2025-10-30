@@ -66,11 +66,11 @@ class Query:
                 aantal_kaarten = cursor.fetchone()[0]
 
                 cursor.execute('''
-                    SELECT ua.user_id, u.puntenaantal
+                    SELECT ua.user_id, u.puntenaantal, u.naam
                     FROM user_aways ua
                     JOIN users u ON ua.user_id = u.id
                     WHERE ua.away_id = %s
-                    ORDER BY u.puntenaantal DESC
+                    ORDER BY u.puntenaantal DESC, u.naam ASC
                 ''', (away_id,))
                 ingeschreven_gebruikers = cursor.fetchall()
 
