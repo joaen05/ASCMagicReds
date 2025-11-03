@@ -1,4 +1,4 @@
-from flask import Flask, redirect, session, url_for, render_template, request, send_file, jsonify
+from flask import Flask, redirect, session, url_for, render_template, request, send_file, jsonify, send_from_directory
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 import psycopg2
@@ -105,6 +105,15 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+STATIC_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+
+# De speciale route voor de Google verificatie file
+@app.route('/googleb9041861b16d7826.html') # Zorg dat deze URL exact overeenkomt met wat Google verwacht!
+def serve_google_verification():
+    # 'send_from_directory' stuurt een bestand vanuit een opgegeven map.
+    # 1. De map: STATIC_FOLDER (onze 'static' map)
+    # 2. De bestandsnaam: 'google12345.html'
+    return send_from_directory(STATIC_FOLDER, 'googleb9041861b16d7826.html')
 
 @app.route('/ping')
 def ping():
