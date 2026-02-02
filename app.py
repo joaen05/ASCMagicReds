@@ -25,6 +25,8 @@ load_dotenv()
 ADMIN_EMAIL = "jonahaertssen05@gmail.com"
 ADMIN_EMAIL2 = "denis.bienstman@hotmail.com"
 ADMIN_EMAIL3 = "sandy.de.cock@hotmail.com"
+ADMIN_EMAIL4 = "nathalievdb84@gmail.com"
+ADMIN_EMAIL5 = "nathalie_vdbroeck@hotmail.com"
 
 # Tijdzone instellen (bijvoorbeeld 'Europe/Brussels')
 TIMEZONE = pytz.timezone('Europe/Brussels')
@@ -144,7 +146,7 @@ def callback():
         return redirect(url_for("no_access"))
 
     # Check admin status
-    if user_email == ADMIN_EMAIL or user_email == ADMIN_EMAIL2 or user_email == ADMIN_EMAIL3:
+    if user_email == ADMIN_EMAIL or user_email == ADMIN_EMAIL2 or user_email == ADMIN_EMAIL3 or user_email == ADMIN_EMAIL4 or user_email == ADMIN_EMAIL5:
         session["is_admin"] = True
     else:
         session["is_admin"] = False
