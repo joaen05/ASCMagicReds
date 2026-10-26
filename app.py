@@ -229,19 +229,26 @@ def beheer_leden():
 def add_user():
     if request.method == 'POST':
         data = {
-            'voornaam': request.form['voornaam'].title(),
-            'naam': request.form['naam'].title(),
-            'email': request.form['email'],
-            'one_account_id': int(request.form['one_account_id']),
-            'adres_straat': request.form['adres_straat'],
-            'adres_nr': request.form['adres_nr'],
-            'adres_postcode': int(request.form['adres_postcode']),
-            'adres_gemeente': request.form['adres_gemeente'],
-            'rijksregisternummer': request.form['rijksregisternummer'],
-            'abo_ja_nee': request.form['abo_ja_nee'],
-            'telefoonnummer': request.form['telefoonnummer'],
-            'puntenaantal': int(request.form['puntenaantal']),
+            'voornaam': request.form.get('voornaam', '').title(),
+            'naam': request.form.get('naam', '').title(),
+            'email': request.form.get('email', ''),
+            'one_account_id': request.form.get('one_account_id', ''),
+            'adres_straat': request.form.get('adres_straat', ''),
+            'adres_nr': request.form.get('adres_nr', ''),
+            'adres_postcode': request.form.get('adres_postcode', ''),
+            'adres_gemeente': request.form.get('adres_gemeente', ''),
+            'rijksregisternummer': request.form.get('rijksregisternummer', ''),
+            'abo_ja_nee': request.form.get('abo_ja_nee', ''),
+            'telefoonnummer': request.form.get('telefoonnummer', ''),
+            'puntenaantal': request.form.get('puntenaantal', ''),
         }
+
+        try:
+            data['one_account_id'] = int(data['one_account_id'])
+            data['adres_postcode'] = int(data['adres_postcode'])
+            data['puntenaantal'] = int(data['puntenaantal'])
+        except ValueError:
+            return render_template('add_user.html', error="One Account ID, postcode en puntenaantal moeten getallen zijn.", **data)
 
         if is_email_in_database(data['email']):
             return render_template('add_user.html', error="E-mailadres bestaat al!", **data)
@@ -281,22 +288,32 @@ def edit_member(id):
     try:
         if request.method == 'POST':
             # Haal de formuliergegevens op en werk het lid bij
-            voornaam = request.form['voornaam'].title()
-            naam = request.form['naam'].title()
-            email = request.form['email']
-            one_account_id = int(request.form['one_account_id'])
-            adres_straat = request.form['adres_straat']
-            adres_nr = request.form['adres_nr']
-            adres_postcode = int(request.form['adres_postcode'])
-            adres_gemeente = request.form['adres_gemeente']
-            rijksregisternummer = request.form['rijksregisternummer']
-            abo_ja_nee = request.form['abo_ja_nee']
-            telefoonnummer = request.form['telefoonnummer']
-            puntenaantal = int(request.form['puntenaantal'])
+            form_data = {
+                'id': id,
+                'voornaam': request.form.get('voornaam', '').title(),
+                'naam': request.form.get('naam', '').title(),
+                'email': request.form.get('email', ''),
+                'one_account_id': request.form.get('one_account_id', ''),
+                'adres_straat': request.form.get('adres_straat', ''),
+                'adres_nr': request.form.get('adres_nr', ''),
+                'adres_postcode': request.form.get('adres_postcode', ''),
+                'adres_gemeente': request.form.get('adres_gemeente', ''),
+                'rijksregisternummer': request.form.get('rijksregisternummer', ''),
+                'abo_ja_nee': request.form.get('abo_ja_nee', ''),
+                'telefoonnummer': request.form.get('telefoonnummer', ''),
+                'puntenaantal': request.form.get('puntenaantal', ''),
+            }
 
-            Query.updateUser(voornaam, naam, email, one_account_id, adres_straat,
-                             adres_nr, adres_postcode,adres_gemeente, rijksregisternummer,
-                             abo_ja_nee, telefoonnummer, puntenaantal, id)
+            try:
+                form_data['one_account_id'] = int(form_data['one_account_id'])
+                form_data['adres_postcode'] = int(form_data['adres_postcode'])
+                form_data['puntenaantal'] = int(form_data['puntenaantal'])
+            except ValueError:
+                return render_template('edit_member.html', member=form_data, error="One Account ID, postcode en puntenaantal moeten getallen zijn.")
+
+            Query.updateUser(form_data['voornaam'], form_data['naam'], form_data['email'], form_data['one_account_id'], form_data['adres_straat'],
+                             form_data['adres_nr'], form_data['adres_postcode'], form_data['adres_gemeente'], form_data['rijksregisternummer'],
+                             form_data['abo_ja_nee'], form_data['telefoonnummer'], form_data['puntenaantal'], id)
 
             # Oplossing: Omleiden naar 'beheer_leden' na een succesvolle update
             return redirect(url_for("beheer_leden"))
